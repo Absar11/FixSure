@@ -11,6 +11,7 @@ const AdminDashboard = () => {
   const [billData, setBillData] = useState({ amount: '', details: '' });
   const [statusFilter, setStatusFilter] = useState('All');
   const [dateFilter, setDateFilter] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const leadsPerPage = 5;
   const navigate = useNavigate();
@@ -34,7 +35,7 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [statusFilter, dateFilter]);
+  }, [statusFilter, dateFilter, searchQuery]);
 
   const handleLogout = () => {
     localStorage.removeItem('adminToken');
@@ -76,7 +77,8 @@ const AdminDashboard = () => {
   const filteredInquiries = inquiries.filter(inq => {
     const matchesStatus = statusFilter === 'All' || inq.status === statusFilter;
     const matchesDate = !dateFilter || new Date(inq.createdAt).toISOString().split('T')[0] === dateFilter;
-    return matchesStatus && matchesDate;
+    const matchesSearch = !searchQuery || inq.phone.includes(searchQuery);
+    return matchesStatus && matchesDate && matchesSearch;
   });
 
   // Pagination Logic
@@ -101,44 +103,70 @@ const AdminDashboard = () => {
           <div className="text-center py-20 text-gray-500">Loading inquiries...</div>
         ) : (
           <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-            <div className="p-6 border-b border-gray-100 bg-gray-50 flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0">
-              <div>
-                <h2 className="text-xl font-bold text-brand-navy">Service Requests ({filteredInquiries.length})</h2>
-                <p className="text-sm text-gray-500 mt-1">Manage and track your leads</p>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-4">
-                <div className="flex bg-white rounded-lg border border-gray-200 p-1 shadow-sm">
-                  {['All', 'Pending', 'Completed', 'Cancelled'].map((status) => (
-                    <button
-                      key={status}
-                      onClick={() => setStatusFilter(status)}
-                      className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${statusFilter === status
-                          ? 'bg-brand-navy text-white shadow-md'
-                          : 'text-gray-600 hover:bg-gray-100'
-                        }`}
-                    >
-                      {status}
-                    </button>
-                  ))}
+            <div className="p-6 border-b border-gray-100 bg-gray-50 space-y-6">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h2 className="text-xl font-bold text-brand-navy">Service Requests ({filteredInquiries.length})</h2>
+                  <p className="text-sm text-gray-500">Track and manage your service leads</p>
                 </div>
-
-                <div className="flex items-center space-x-2 bg-white rounded-lg border border-gray-200 p-1 px-3 shadow-sm">
-                  <span className="text-xs font-bold text-gray-400 uppercase">Date:</span>
-                  <input
-                    type="date"
-                    value={dateFilter}
-                    onChange={(e) => setDateFilter(e.target.value)}
-                    className="text-sm text-brand-navy border-none focus:ring-0 outline-none"
+              </div>
+              
+              <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+                {/* Search Bar */}
+                <div className="relative w-full lg:w-72">
+                  <input 
+                    type="text"
+                    placeholder="Search by Mobile No..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-4 pr-10 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-navy focus:outline-none shadow-sm bg-white"
                   />
-                  {dateFilter && (
-                    <button
-                      onClick={() => setDateFilter('')}
-                      className="text-xs text-red-500 hover:text-red-700 font-bold"
+                  {searchQuery && (
+                    <button 
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 text-lg"
                     >
-                      Clear
+                      ×
                     </button>
                   )}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">
+                  {/* Status Filter */}
+                  <div className="flex bg-white rounded-xl border border-gray-200 p-1 shadow-sm overflow-hidden">
+                    {['All', 'Pending', 'Completed', 'Cancelled'].map((status) => (
+                      <button
+                        key={status}
+                        onClick={() => setStatusFilter(status)}
+                        className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                          statusFilter === status 
+                            ? 'bg-brand-navy text-white shadow-md' 
+                            : 'text-gray-600 hover:bg-gray-100'
+                        }`}
+                      >
+                        {status}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Date Filter */}
+                  <div className="flex items-center space-x-2 bg-white rounded-xl border border-gray-200 p-1 px-3 shadow-sm h-[42px]">
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Date:</span>
+                    <input 
+                      type="date" 
+                      value={dateFilter}
+                      onChange={(e) => setDateFilter(e.target.value)}
+                      className="text-xs font-bold text-brand-navy border-none focus:ring-0 outline-none bg-transparent cursor-pointer"
+                    />
+                    {dateFilter && (
+                      <button 
+                        onClick={() => setDateFilter('')}
+                        className="text-[10px] text-red-500 hover:text-red-700 font-black uppercase"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
