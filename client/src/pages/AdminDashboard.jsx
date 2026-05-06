@@ -11,6 +11,8 @@ const AdminDashboard = () => {
   const [billData, setBillData] = useState({ amount: '', details: '' });
   const [statusFilter, setStatusFilter] = useState('All');
   const [dateFilter, setDateFilter] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const leadsPerPage = 5;
   const navigate = useNavigate();
 
   const fetchInquiries = async () => {
@@ -29,6 +31,10 @@ const AdminDashboard = () => {
     if (!token) navigate('/admin/login');
     fetchInquiries();
   }, [navigate]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, dateFilter]);
 
   const handleLogout = () => {
     localStorage.removeItem('adminToken');
@@ -73,6 +79,14 @@ const AdminDashboard = () => {
     return matchesStatus && matchesDate;
   });
 
+  // Pagination Logic
+  const indexOfLastLead = currentPage * leadsPerPage;
+  const indexOfFirstLead = indexOfLastLead - leadsPerPage;
+  const currentLeads = filteredInquiries.slice(indexOfFirstLead, indexOfLastLead);
+  const totalPages = Math.ceil(filteredInquiries.length / leadsPerPage);
+
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
   return (
     <div className="min-h-screen bg-brand-light p-6 md:p-10 font-sans">
       <div className="max-w-7xl mx-auto">
@@ -92,18 +106,17 @@ const AdminDashboard = () => {
                 <h2 className="text-xl font-bold text-brand-navy">Service Requests ({filteredInquiries.length})</h2>
                 <p className="text-sm text-gray-500 mt-1">Manage and track your leads</p>
               </div>
-              
+
               <div className="flex flex-wrap items-center gap-4">
                 <div className="flex bg-white rounded-lg border border-gray-200 p-1 shadow-sm">
                   {['All', 'Pending', 'Completed', 'Cancelled'].map((status) => (
                     <button
                       key={status}
                       onClick={() => setStatusFilter(status)}
-                      className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
-                        statusFilter === status 
-                          ? 'bg-brand-navy text-white shadow-md' 
+                      className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${statusFilter === status
+                          ? 'bg-brand-navy text-white shadow-md'
                           : 'text-gray-600 hover:bg-gray-100'
-                      }`}
+                        }`}
                     >
                       {status}
                     </button>
@@ -112,14 +125,14 @@ const AdminDashboard = () => {
 
                 <div className="flex items-center space-x-2 bg-white rounded-lg border border-gray-200 p-1 px-3 shadow-sm">
                   <span className="text-xs font-bold text-gray-400 uppercase">Date:</span>
-                  <input 
-                    type="date" 
+                  <input
+                    type="date"
                     value={dateFilter}
                     onChange={(e) => setDateFilter(e.target.value)}
                     className="text-sm text-brand-navy border-none focus:ring-0 outline-none"
                   />
                   {dateFilter && (
-                    <button 
+                    <button
                       onClick={() => setDateFilter('')}
                       className="text-xs text-red-500 hover:text-red-700 font-bold"
                     >
@@ -129,7 +142,7 @@ const AdminDashboard = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
@@ -149,7 +162,7 @@ const AdminDashboard = () => {
                       </td>
                     </tr>
                   ) : (
-                    filteredInquiries.map((inq) => (
+                    currentLeads.map((inq) => (
                       <tr key={inq._id} className="hover:bg-gray-50 transition-colors">
                         <td className="p-6">
                           <div className="font-bold text-brand-navy">{inq.name}</div>
@@ -162,10 +175,9 @@ const AdminDashboard = () => {
                         </td>
                         <td className="p-6 text-gray-600 max-w-xs truncate">{inq.address}</td>
                         <td className="p-6">
-                          <span className={`flex items-center font-medium ${
-                            inq.status === 'Completed' ? 'text-green-600' : 
-                            inq.status === 'Cancelled' ? 'text-red-500' : 'text-amber-500'
-                          }`}>
+                          <span className={`flex items-center font-medium ${inq.status === 'Completed' ? 'text-green-600' :
+                              inq.status === 'Cancelled' ? 'text-red-500' : 'text-amber-500'
+                            }`}>
                             {inq.status === 'Completed' && <FiCheckCircle className="mr-1" />}
                             {inq.status}
                           </span>
@@ -173,7 +185,7 @@ const AdminDashboard = () => {
                         <td className="p-6 text-right space-x-2">
                           {inq.status === 'Pending' && (
                             <>
-                              <button 
+                              <button
                                 onClick={() => {
                                   setSelectedInquiry(inq);
                                   setShowBillModal(true);
@@ -182,7 +194,7 @@ const AdminDashboard = () => {
                               >
                                 Edit/Bill
                               </button>
-                              <button 
+                              <button
                                 onClick={() => updateStatus(inq._id, 'Cancelled')}
                                 className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded text-xs font-bold transition-colors"
                               >
@@ -190,7 +202,7 @@ const AdminDashboard = () => {
                               </button>
                             </>
                           )}
-                          <button 
+                          <button
                             onClick={() => deleteInquiry(inq._id)}
                             className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs font-bold transition-colors"
                           >
@@ -203,6 +215,48 @@ const AdminDashboard = () => {
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-center items-center space-x-2">
+                <button
+                  onClick={() => paginate(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className={`px-3 py-1 rounded border ${currentPage === 1
+                      ? 'text-gray-300 border-gray-200 cursor-not-allowed'
+                      : 'text-brand-navy border-gray-300 hover:bg-white'
+                    }`}
+                >
+                  Prev
+                </button>
+
+                <div className="flex space-x-1">
+                  {[...Array(totalPages)].map((_, i) => (
+                    <button
+                      key={i + 1}
+                      onClick={() => paginate(i + 1)}
+                      className={`w-8 h-8 rounded text-sm font-medium transition-all ${currentPage === i + 1
+                          ? 'bg-brand-navy text-white shadow-md'
+                          : 'text-gray-600 hover:bg-white border border-transparent hover:border-gray-300'
+                        }`}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  onClick={() => paginate(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className={`px-3 py-1 rounded border ${currentPage === totalPages
+                      ? 'text-gray-300 border-gray-200 cursor-not-allowed'
+                      : 'text-brand-navy border-gray-300 hover:bg-white'
+                    }`}
+                >
+                  Next
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -218,8 +272,8 @@ const AdminDashboard = () => {
             <form onSubmit={handleGenerateBill} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Service Amount (Rs.)</label>
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   required
                   value={billData.amount}
                   onChange={(e) => setBillData({ ...billData, amount: e.target.value })}
@@ -229,7 +283,7 @@ const AdminDashboard = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Other Details / Notes</label>
-                <textarea 
+                <textarea
                   value={billData.details}
                   onChange={(e) => setBillData({ ...billData, details: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-orange focus:outline-none h-24"
@@ -237,14 +291,14 @@ const AdminDashboard = () => {
                 />
               </div>
               <div className="flex space-x-3 pt-4">
-                <button 
+                <button
                   type="button"
                   onClick={() => setShowBillModal(false)}
                   className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   Close
                 </button>
-                <button 
+                <button
                   type="submit"
                   className="flex-1 px-4 py-2 bg-brand-orange text-white rounded-lg hover:bg-orange-600 transition-colors font-bold shadow-md"
                 >
