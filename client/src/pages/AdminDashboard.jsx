@@ -9,6 +9,8 @@ const AdminDashboard = () => {
   const [showBillModal, setShowBillModal] = useState(false);
   const [selectedInquiry, setSelectedInquiry] = useState(null);
   const [billData, setBillData] = useState({ amount: '', details: '' });
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [dateFilter, setDateFilter] = useState('');
   const navigate = useNavigate();
 
   const fetchInquiries = async () => {
@@ -65,6 +67,12 @@ const AdminDashboard = () => {
     }
   };
 
+  const filteredInquiries = inquiries.filter(inq => {
+    const matchesStatus = statusFilter === 'All' || inq.status === statusFilter;
+    const matchesDate = !dateFilter || new Date(inq.createdAt).toISOString().split('T')[0] === dateFilter;
+    return matchesStatus && matchesDate;
+  });
+
   return (
     <div className="min-h-screen bg-brand-light p-6 md:p-10 font-sans">
       <div className="max-w-7xl mx-auto">
@@ -79,8 +87,47 @@ const AdminDashboard = () => {
           <div className="text-center py-20 text-gray-500">Loading inquiries...</div>
         ) : (
           <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-            <div className="p-6 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-brand-navy">Recent Service Requests ({inquiries.length})</h2>
+            <div className="p-6 border-b border-gray-100 bg-gray-50 flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0">
+              <div>
+                <h2 className="text-xl font-bold text-brand-navy">Service Requests ({filteredInquiries.length})</h2>
+                <p className="text-sm text-gray-500 mt-1">Manage and track your leads</p>
+              </div>
+              
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="flex bg-white rounded-lg border border-gray-200 p-1 shadow-sm">
+                  {['All', 'Pending', 'Completed', 'Cancelled'].map((status) => (
+                    <button
+                      key={status}
+                      onClick={() => setStatusFilter(status)}
+                      className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
+                        statusFilter === status 
+                          ? 'bg-brand-navy text-white shadow-md' 
+                          : 'text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      {status}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex items-center space-x-2 bg-white rounded-lg border border-gray-200 p-1 px-3 shadow-sm">
+                  <span className="text-xs font-bold text-gray-400 uppercase">Date:</span>
+                  <input 
+                    type="date" 
+                    value={dateFilter}
+                    onChange={(e) => setDateFilter(e.target.value)}
+                    className="text-sm text-brand-navy border-none focus:ring-0 outline-none"
+                  />
+                  {dateFilter && (
+                    <button 
+                      onClick={() => setDateFilter('')}
+                      className="text-xs text-red-500 hover:text-red-700 font-bold"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
             
             <div className="overflow-x-auto">
@@ -95,12 +142,14 @@ const AdminDashboard = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50 text-sm">
-                  {inquiries.length === 0 ? (
+                  {filteredInquiries.length === 0 ? (
                     <tr>
-                      <td colSpan="5" className="p-10 text-center text-gray-500">No service requests found.</td>
+                      <td colSpan="5" className="p-10 text-center text-gray-500">
+                        No service requests found for these filters.
+                      </td>
                     </tr>
                   ) : (
-                    inquiries.map((inq) => (
+                    filteredInquiries.map((inq) => (
                       <tr key={inq._id} className="hover:bg-gray-50 transition-colors">
                         <td className="p-6">
                           <div className="font-bold text-brand-navy">{inq.name}</div>
