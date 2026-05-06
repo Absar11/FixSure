@@ -1,14 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { FiLogOut, FiCheckCircle } from 'react-icons/fi';
+import { FiLogOut, FiCheckCircle, FiTrash2, FiFileText, FiPrinter, FiX, FiFilePlus, FiXCircle, FiEye } from 'react-icons/fi';
+import { toast } from 'react-hot-toast';
 
 const AdminDashboard = () => {
   const [inquiries, setInquiries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showBillModal, setShowBillModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
   const [selectedInquiry, setSelectedInquiry] = useState(null);
-  const [billData, setBillData] = useState({ amount: '', details: '' });
+  const [viewingBillId, setViewingBillId] = useState(null);
+  const [billData, setBillData] = useState({
+    items: [{ description: '', qty: 1, amount: '' }],
+    discount: 0,
+    paymentMode: 'UPI',
+    warrantyNote: '45 Days Warranty on Gas Charging. (Warranty applies only to the specific area serviced by our technician.)'
+  });
   const [statusFilter, setStatusFilter] = useState('All');
   const [dateFilter, setDateFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -18,7 +26,7 @@ const AdminDashboard = () => {
 
   const fetchInquiries = async () => {
     try {
-      const res = await axios.get('http://192.168.29.141:5000/api/inquiries');
+      const res = await axios.get(`http://${window.location.hostname}:5000/api/inquiries`);
       setInquiries(res.data);
     } catch (err) {
       console.error("Failed to fetch inquiries");
@@ -42,36 +50,117 @@ const AdminDashboard = () => {
     navigate('/admin/login');
   };
 
-  const updateStatus = async (id, newStatus) => {
-    try {
-      await axios.put(`http://192.168.29.141:5000/api/inquiries/${id}`, { status: newStatus });
-      setInquiries(inquiries.map(inq => inq._id === id ? { ...inq, status: newStatus } : inq));
-    } catch (err) {
-      alert('Failed to update status');
-    }
-  };
-
   const deleteInquiry = async (id) => {
     if (!window.confirm('Are you sure you want to delete this inquiry?')) return;
     try {
-      await axios.delete(`http://192.168.29.141:5000/api/inquiries/${id}`);
+      await axios.delete(`http://${window.location.hostname}:5000/api/inquiries/${id}`);
       setInquiries(inquiries.filter(inq => inq._id !== id));
     } catch (err) {
-      alert('Failed to delete inquiry');
+      toast.error('Failed to delete inquiry');
     }
   };
 
+  // ✅ FIX 1: Bill generate hone ke baad updatedInquiry se state update karo — no page reload needed
   const handleGenerateBill = async (e) => {
     e.preventDefault();
+    const loadingToast = toast.loading('Generating bill...');
     try {
-      await axios.post(`http://192.168.29.141:5000/api/inquiries/${selectedInquiry._id}/bill`, billData);
-      alert('Bill generated and saved successfully!');
+      const res = await axios.post(
+        `http://${window.location.hostname}:5000/api/inquiries/${selectedInquiry._id}/bill`,
+        billData
+      );
+
+      console.log("Bill Generation Response:", res.data);
+
+      const updatedInquiry = res.data.updatedInquiry;
+      if (updatedInquiry) {
+        console.log("Updating state with new inquiry data");
+        setInquiries(prev =>
+          prev.map(inq => inq._id === updatedInquiry._id ? updatedInquiry : inq)
+        );
+      } else {
+        console.log("Updated inquiry MISSING in response. Forcing refresh...");
+        await fetchInquiries();
+      }
+
+      toast.success('Bill generated and saved successfully!', { id: loadingToast });
       setShowBillModal(false);
-      setBillData({ amount: '', details: '' });
+      setBillData({
+        items: [{ description: '', qty: 1, amount: '' }],
+        discount: 0,
+        paymentMode: 'UPI',
+        warrantyNote: '45 Days Warranty on Gas Charging. (Warranty applies only to the specific area serviced by our technician.)'
+      });
+      console.log("Fetching Inquiries")
       fetchInquiries();
     } catch (err) {
-      alert('Error generating bill');
+      const errorMsg = err.response?.data?.error || err.message || 'Error generating bill';
+      toast.error(`Failed: ${errorMsg}`, { id: loadingToast });
     }
+  };
+
+  const addItem = () => {
+    setBillData({
+      ...billData,
+      items: [...billData.items, { description: '', qty: 1, amount: '' }]
+    });
+  };
+
+  const removeItem = (index) => {
+    const newItems = billData.items.filter((_, i) => i !== index);
+    setBillData({ ...billData, items: newItems });
+  };
+
+  const updateItem = (index, field, value) => {
+    const newItems = [...billData.items];
+    newItems[index][field] = value;
+    setBillData({ ...billData, items: newItems });
+  };
+
+  // ✅ FIX 2: Status update ke baad bhi sirf us entry ko update karo — no full refetch
+  const updateStatus = async (id, status) => {
+    try {
+      const res = await axios.put(`http://${window.location.hostname}:5000/api/inquiries/${id}`, { status });
+      setInquiries(prev =>
+        prev.map(inq => inq._id === id ? { ...inq, status: res.data.status } : inq)
+      );
+      toast.success(`Status updated to ${status}`);
+    } catch (err) {
+      toast.error("Failed to update status");
+    }
+  };
+
+  // ✅ FIX 3: billId ab populated object hai — _id properly extract karo
+  const handleViewBill = async (inq) => {
+    console.log("VIEW BILL CLICKED. Inq data:", inq);
+    try {
+      let bId = inq.billId?._id || inq.billId;
+      console.log("Current billId from state:", bId);
+
+      if (!bId) {
+        console.log("BillId missing in state. Fetching from server for Inquiry ID:", inq._id);
+        const res = await axios.get(`http://${window.location.hostname}:5000/api/inquiries/find-bill/${inq._id}`);
+        console.log("Response from server:", res.data);
+        bId = res.data._id;
+      }
+
+      if (bId) {
+        console.log("Final Bill ID to view:", bId);
+        setViewingBillId(bId);
+        setShowViewModal(true);
+      } else {
+        throw new Error("No Bill ID found");
+      }
+    } catch (err) {
+      console.error("CRITICAL ERROR IN VIEW BILL:", err);
+      toast.error(`Error: ${err.response?.data?.error || "Bill not found for this lead"}`);
+    }
+  };
+
+  const printBill = () => {
+    const iframe = document.getElementById('bill-iframe');
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
   };
 
   const filteredInquiries = inquiries.filter(inq => {
@@ -110,11 +199,11 @@ const AdminDashboard = () => {
                   <p className="text-sm text-gray-500">Track and manage your service leads</p>
                 </div>
               </div>
-              
+
               <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
                 {/* Search Bar */}
                 <div className="relative w-full lg:w-72">
-                  <input 
+                  <input
                     type="text"
                     placeholder="Search by Mobile No..."
                     value={searchQuery}
@@ -122,7 +211,7 @@ const AdminDashboard = () => {
                     className="w-full pl-4 pr-10 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-navy focus:outline-none shadow-sm bg-white"
                   />
                   {searchQuery && (
-                    <button 
+                    <button
                       onClick={() => setSearchQuery('')}
                       className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 text-lg"
                     >
@@ -138,11 +227,10 @@ const AdminDashboard = () => {
                       <button
                         key={status}
                         onClick={() => setStatusFilter(status)}
-                        className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-                          statusFilter === status 
-                            ? 'bg-brand-navy text-white shadow-md' 
-                            : 'text-gray-600 hover:bg-gray-100'
-                        }`}
+                        className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${statusFilter === status
+                          ? 'bg-brand-navy text-white shadow-md'
+                          : 'text-gray-600 hover:bg-gray-100'
+                          }`}
                       >
                         {status}
                       </button>
@@ -152,14 +240,14 @@ const AdminDashboard = () => {
                   {/* Date Filter */}
                   <div className="flex items-center space-x-2 bg-white rounded-xl border border-gray-200 p-1 px-3 shadow-sm h-[42px]">
                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Date:</span>
-                    <input 
-                      type="date" 
+                    <input
+                      type="date"
                       value={dateFilter}
                       onChange={(e) => setDateFilter(e.target.value)}
                       className="text-xs font-bold text-brand-navy border-none focus:ring-0 outline-none bg-transparent cursor-pointer"
                     />
                     {dateFilter && (
-                      <button 
+                      <button
                         onClick={() => setDateFilter('')}
                         className="text-[10px] text-red-500 hover:text-red-700 font-black uppercase"
                       >
@@ -204,38 +292,51 @@ const AdminDashboard = () => {
                         <td className="p-6 text-gray-600 max-w-xs truncate">{inq.address}</td>
                         <td className="p-6">
                           <span className={`flex items-center font-medium ${inq.status === 'Completed' ? 'text-green-600' :
-                              inq.status === 'Cancelled' ? 'text-red-500' : 'text-amber-500'
+                            inq.status === 'Cancelled' ? 'text-red-500' : 'text-amber-500'
                             }`}>
                             {inq.status === 'Completed' && <FiCheckCircle className="mr-1" />}
                             {inq.status}
                           </span>
                         </td>
-                        <td className="p-6 text-right space-x-2">
-                          {inq.status === 'Pending' && (
-                            <>
+                        <td className="p-6 text-right">
+                          <div className="flex space-x-2 justify-end">
+                            {inq.status === 'Pending' && (
+                              <>
+                                <button
+                                  onClick={() => { setSelectedInquiry(inq); setShowBillModal(true); }}
+                                  className="bg-brand-navy text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-900 transition-all shadow-sm flex items-center"
+                                  title="Generate Bill"
+                                >
+                                  <FiFilePlus className="mr-1" /> Bill
+                                </button>
+                                <button
+                                  onClick={() => updateStatus(inq._id, 'Cancelled')}
+                                  className="bg-amber-50 text-amber-600 p-2 rounded-lg hover:bg-amber-100 transition-all"
+                                  title="Cancel Lead"
+                                >
+                                  <FiXCircle className="w-4 h-4" />
+                                </button>
+                              </>
+                            )}
+
+                            {inq.status === 'Completed' && (
                               <button
-                                onClick={() => {
-                                  setSelectedInquiry(inq);
-                                  setShowBillModal(true);
-                                }}
-                                className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs font-bold transition-colors"
+                                onClick={() => handleViewBill(inq)}
+                                className="bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-green-700 transition-all shadow-sm flex items-center"
+                                title="View Bill"
                               >
-                                Edit/Bill
+                                <FiEye className="mr-1" /> View
                               </button>
-                              <button
-                                onClick={() => updateStatus(inq._id, 'Cancelled')}
-                                className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded text-xs font-bold transition-colors"
-                              >
-                                Cancel
-                              </button>
-                            </>
-                          )}
-                          <button
-                            onClick={() => deleteInquiry(inq._id)}
-                            className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs font-bold transition-colors"
-                          >
-                            Delete
-                          </button>
+                            )}
+
+                            <button
+                              onClick={() => deleteInquiry(inq._id)}
+                              className="bg-red-50 text-red-500 p-2 rounded-lg hover:bg-red-100 transition-all"
+                              title="Delete Lead"
+                            >
+                              <FiTrash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -251,8 +352,8 @@ const AdminDashboard = () => {
                   onClick={() => paginate(currentPage - 1)}
                   disabled={currentPage === 1}
                   className={`px-3 py-1 rounded border ${currentPage === 1
-                      ? 'text-gray-300 border-gray-200 cursor-not-allowed'
-                      : 'text-brand-navy border-gray-300 hover:bg-white'
+                    ? 'text-gray-300 border-gray-200 cursor-not-allowed'
+                    : 'text-brand-navy border-gray-300 hover:bg-white'
                     }`}
                 >
                   Prev
@@ -264,8 +365,8 @@ const AdminDashboard = () => {
                       key={i + 1}
                       onClick={() => paginate(i + 1)}
                       className={`w-8 h-8 rounded text-sm font-medium transition-all ${currentPage === i + 1
-                          ? 'bg-brand-navy text-white shadow-md'
-                          : 'text-gray-600 hover:bg-white border border-transparent hover:border-gray-300'
+                        ? 'bg-brand-navy text-white shadow-md'
+                        : 'text-gray-600 hover:bg-white border border-transparent hover:border-gray-300'
                         }`}
                     >
                       {i + 1}
@@ -277,8 +378,8 @@ const AdminDashboard = () => {
                   onClick={() => paginate(currentPage + 1)}
                   disabled={currentPage === totalPages}
                   className={`px-3 py-1 rounded border ${currentPage === totalPages
-                      ? 'text-gray-300 border-gray-200 cursor-not-allowed'
-                      : 'text-brand-navy border-gray-300 hover:bg-white'
+                    ? 'text-gray-300 border-gray-200 cursor-not-allowed'
+                    : 'text-brand-navy border-gray-300 hover:bg-white'
                     }`}
                 >
                   Next
@@ -289,40 +390,153 @@ const AdminDashboard = () => {
         )}
       </div>
 
-      {/* Bill Generation Modal */}
+      {/* View Bill Modal */}
+      {showViewModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden h-[90vh] flex flex-col">
+            <div className="bg-brand-navy p-4 text-white flex justify-between items-center shrink-0">
+              <h3 className="text-lg font-bold">View Invoice</h3>
+              <div className="flex space-x-3">
+                <button
+                  onClick={printBill}
+                  className="bg-brand-orange text-white px-4 py-1.5 rounded-lg text-sm font-bold hover:bg-orange-600 shadow-md flex items-center"
+                >
+                  <FiPrinter className="mr-2" /> Print Bill
+                </button>
+                <button
+                  onClick={() => setShowViewModal(false)}
+                  className="bg-white bg-opacity-20 text-white p-2 rounded-lg hover:bg-opacity-30"
+                >
+                  <FiX className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 bg-gray-200 relative">
+              {!viewingBillId ? (
+                <div className="absolute inset-0 flex items-center justify-center text-gray-500">
+                  Loading bill preview...
+                </div>
+              ) : (
+                <iframe
+                  id="bill-iframe"
+                  src={`http://${window.location.hostname}:5000/api/inquiries/bill-file/${viewingBillId}`}
+                  className="w-full h-full border-none"
+                  title="Bill Preview"
+                  onLoad={() => console.log('Iframe loaded for billId:', viewingBillId)}
+                  onError={(e) => console.error('Iframe error:', e)}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {showBillModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-            <div className="bg-brand-navy p-6 text-white">
-              <h3 className="text-xl font-bold">Generate Service Bill</h3>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col">
+            <div className="bg-brand-navy p-6 text-white shrink-0">
+              <h3 className="text-xl font-bold">Generate Professional Bill</h3>
               <p className="text-blue-100 text-sm mt-1">Customer: {selectedInquiry?.name}</p>
             </div>
-            <form onSubmit={handleGenerateBill} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Service Amount (Rs.)</label>
-                <input
-                  type="number"
-                  required
-                  value={billData.amount}
-                  onChange={(e) => setBillData({ ...billData, amount: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-orange focus:outline-none"
-                  placeholder="Enter amount"
-                />
+
+            <form onSubmit={handleGenerateBill} className="p-6 space-y-6 overflow-y-auto">
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h4 className="font-bold text-gray-700">Service Items</h4>
+                  <button
+                    type="button"
+                    onClick={addItem}
+                    className="text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600 font-bold"
+                  >
+                    + Add Item
+                  </button>
+                </div>
+
+                {billData.items.map((item, index) => (
+                  <div key={index} className="flex gap-3 items-end bg-gray-50 p-3 rounded-lg border border-gray-100">
+                    <div className="flex-1">
+                      <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Description</label>
+                      <input
+                        type="text"
+                        required
+                        value={item.description}
+                        onChange={(e) => updateItem(index, 'description', e.target.value)}
+                        className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-navy focus:outline-none"
+                        placeholder="e.g. AC Gas Refill"
+                      />
+                    </div>
+                    <div className="w-20">
+                      <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Qty</label>
+                      <input
+                        type="number"
+                        required
+                        value={item.qty}
+                        onChange={(e) => updateItem(index, 'qty', e.target.value)}
+                        className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-navy focus:outline-none"
+                      />
+                    </div>
+                    <div className="w-28">
+                      <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Price (₹)</label>
+                      <input
+                        type="number"
+                        required
+                        value={item.amount}
+                        onChange={(e) => updateItem(index, 'amount', e.target.value)}
+                        className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-navy focus:outline-none"
+                        placeholder="Amount"
+                      />
+                    </div>
+                    {billData.items.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeItem(index)}
+                        className="bg-red-100 text-red-500 p-2 rounded-lg hover:bg-red-200"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                ))}
               </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Discount (₹)</label>
+                  <input
+                    type="number"
+                    value={billData.discount}
+                    onChange={(e) => setBillData({ ...billData, discount: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-navy focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Payment Mode</label>
+                  <select
+                    value={billData.paymentMode}
+                    onChange={(e) => setBillData({ ...billData, paymentMode: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-navy focus:outline-none"
+                  >
+                    <option value="UPI">UPI</option>
+                    <option value="Cash">Cash</option>
+                    <option value="Online">Online</option>
+                  </select>
+                </div>
+              </div>
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Other Details / Notes</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Warranty / Note</label>
                 <textarea
-                  value={billData.details}
-                  onChange={(e) => setBillData({ ...billData, details: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-orange focus:outline-none h-24"
-                  placeholder="Spare parts used, extra work, etc."
+                  value={billData.warrantyNote}
+                  onChange={(e) => setBillData({ ...billData, warrantyNote: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-navy focus:outline-none h-20"
                 />
               </div>
-              <div className="flex space-x-3 pt-4">
+
+              <div className="flex space-x-3 pt-4 shrink-0 bg-white sticky bottom-0">
                 <button
                   type="button"
                   onClick={() => setShowBillModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-bold"
                 >
                   Close
                 </button>
@@ -330,7 +544,7 @@ const AdminDashboard = () => {
                   type="submit"
                   className="flex-1 px-4 py-2 bg-brand-orange text-white rounded-lg hover:bg-orange-600 transition-colors font-bold shadow-md"
                 >
-                  Submit & Gen Bill
+                  Generate Invoice PDF
                 </button>
               </div>
             </form>
