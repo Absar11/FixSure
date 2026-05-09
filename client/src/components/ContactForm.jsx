@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
+import api from '../utils/api';
 import { toast } from 'react-hot-toast';
 import { FiUser, FiPhone, FiMapPin, FiSend, FiChevronDown, FiWind, FiCoffee, FiCpu, FiArchive, FiShield, FiCheckCircle, FiMoreHorizontal, FiActivity } from 'react-icons/fi';
 
@@ -41,6 +41,13 @@ const ContactForm = ({ minimal = false, preselectedService = 'AC Repair' }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Phone Validation
+    const phoneRegex = /^[0-9]{10}$/;
+    if (!phoneRegex.test(formData.phone)) {
+      return toast.error('Please enter a valid 10-digit mobile number');
+    }
+
     setIsSubmitting(true);
     const loadingToast = toast.loading('Submitting your request...');
     try {
@@ -61,7 +68,7 @@ const ContactForm = ({ minimal = false, preselectedService = 'AC Repair' }) => {
         <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-brand-orange to-brand-navy"></div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <input type="text" placeholder="Name" required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-transparent focus:bg-white focus:border-brand-orange outline-none font-bold text-sm" />
-          <input type="tel" placeholder="Phone" required value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-transparent focus:bg-white focus:border-brand-orange outline-none font-bold text-sm" />
+          <input type="tel" placeholder="Phone" required maxLength="10" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/\D/g, '') })} className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-transparent focus:bg-white focus:border-brand-orange outline-none font-bold text-sm" />
           
           <div className="relative" ref={dropdownRef}>
             <button type="button" onClick={() => setIsDropdownOpen(!isDropdownOpen)} className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-gray-50 border border-transparent font-bold text-sm text-brand-navy">
@@ -133,7 +140,7 @@ const ContactForm = ({ minimal = false, preselectedService = 'AC Repair' }) => {
                   </div>
                   <div className="relative group">
                     <FiPhone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-brand-orange" />
-                    <input type="tel" placeholder="Mobile Number" required value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="w-full pl-12 pr-4 py-4 rounded-2xl bg-gray-50 border border-transparent focus:bg-white focus:border-brand-orange outline-none font-bold text-sm" />
+                    <input type="tel" placeholder="Mobile Number" required maxLength="10" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/\D/g, '') })} className="w-full pl-12 pr-4 py-4 rounded-2xl bg-gray-50 border border-transparent focus:bg-white focus:border-brand-orange outline-none font-bold text-sm" />
                   </div>
                 </div>
 
