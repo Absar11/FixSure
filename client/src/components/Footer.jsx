@@ -33,10 +33,11 @@ const Footer = () => {
           <div>
             <h3 className="text-xl font-bold mb-6 border-b border-gray-700 pb-2 inline-block">Quick Links</h3>
             <ul className="space-y-3">
-              <li><a href="#home" className="text-gray-400 hover:text-brand-orange transition-colors">Home</a></li>
-              <li><a href="#services" className="text-gray-400 hover:text-brand-orange transition-colors">Services</a></li>
+              <li><Link to="/" className="text-gray-400 hover:text-brand-orange transition-colors">Home</Link></li>
+              <li><a href="/#services" className="text-gray-400 hover:text-brand-orange transition-colors">Services</a></li>
               <li><Link to="/about" className="text-gray-400 hover:text-brand-orange transition-colors">About Us</Link></li>
-              <li><a href="#contact" className="text-gray-400 hover:text-brand-orange transition-colors">Contact</a></li>
+              <li><Link to="/blog" className="text-gray-400 hover:text-brand-orange transition-colors">Blog</Link></li>
+              <li><a href="/#contact" className="text-gray-400 hover:text-brand-orange transition-colors">Contact</a></li>
               <li><a href="/admin/login" className="text-gray-400 hover:text-brand-orange transition-colors">Admin Login</a></li>
             </ul>
           </div>
@@ -55,7 +56,7 @@ const Footer = () => {
               </li>
               <li className="flex items-center">
                 <FiMail className="text-brand-orange mr-3 flex-shrink-0" size={20} />
-                <span className="text-gray-400">support@fixsure.com</span>
+                <span className="text-gray-400">fixsure7@gmail.com</span>
               </li>
             </ul>
           </div>

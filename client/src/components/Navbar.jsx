@@ -37,11 +37,13 @@ const Navbar = () => {
               <>
                 <a href="#services" className={`${textColorClass} hover:text-brand-orange transition-colors font-bold uppercase text-xs tracking-widest`}>Services</a>
                 <Link to="/about" className={`${textColorClass} hover:text-brand-orange transition-colors font-bold uppercase text-xs tracking-widest`}>About Us</Link>
+                <Link to="/blog" className={`${textColorClass} hover:text-brand-orange transition-colors font-bold uppercase text-xs tracking-widest`}>Blog</Link>
               </>
             ) : (
               <>
                 <Link to="/" className={`${textColorClass} hover:text-brand-orange transition-colors font-bold uppercase text-xs tracking-widest`}>Home</Link>
                 <a href="/#services" className={`${textColorClass} hover:text-brand-orange transition-colors font-bold uppercase text-xs tracking-widest`}>Our Services</a>
+                <Link to="/blog" className={`${textColorClass} hover:text-brand-orange transition-colors font-bold uppercase text-xs tracking-widest`}>Blog</Link>
               </>
             )}
             <a href="#contact" className="bg-brand-orange text-white px-8 py-3 rounded-xl hover:bg-orange-600 transition-all shadow-lg font-black uppercase text-xs tracking-widest transform hover:-translate-y-1">
@@ -65,11 +67,13 @@ const Navbar = () => {
               <>
                 <a href="#services" className="block py-3 text-brand-navy font-black uppercase text-sm tracking-widest border-b border-gray-50" onClick={() => setIsOpen(false)}>Services</a>
                 <Link to="/about" className="block py-3 text-brand-navy font-black uppercase text-sm tracking-widest border-b border-gray-50" onClick={() => setIsOpen(false)}>About Us</Link>
+                <Link to="/blog" className="block py-3 text-brand-navy font-black uppercase text-sm tracking-widest border-b border-gray-50" onClick={() => setIsOpen(false)}>Blog</Link>
               </>
             ) : (
               <>
                 <Link to="/" className="block py-3 text-brand-navy font-black uppercase text-sm tracking-widest border-b border-gray-100" onClick={() => setIsOpen(false)}>Home</Link>
                 <a href="/#services" className="block py-3 text-brand-navy font-black uppercase text-sm tracking-widest border-b border-gray-100" onClick={() => setIsOpen(false)}>Our Services</a>
+                <Link to="/blog" className="block py-3 text-brand-navy font-black uppercase text-sm tracking-widest border-b border-gray-100" onClick={() => setIsOpen(false)}>Blog</Link>
               </>
             )}
             <a href="#contact" className="block py-4 text-center bg-brand-orange text-white font-black uppercase text-sm tracking-widest rounded-xl shadow-lg" onClick={() => setIsOpen(false)}>Book Now</a>

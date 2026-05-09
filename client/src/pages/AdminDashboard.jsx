@@ -240,7 +240,14 @@ const AdminDashboard = () => {
                           <td className="px-6 py-6">
                             <span className="inline-block px-3 py-1 bg-orange-50 text-brand-orange rounded-full text-[10px] font-black uppercase tracking-widest border border-orange-100">{inq.serviceType}</span>
                           </td>
-                          <td className="px-6 py-6 text-xs text-gray-500 font-medium max-w-xs truncate">{inq.address}</td>
+                          <td className="px-6 py-6 max-w-xs">
+                            <p className="text-xs text-gray-600 font-medium truncate" title={inq.address}>{inq.address}</p>
+                            {inq.message && (
+                              <p className="text-[10px] text-brand-orange font-bold mt-1 italic leading-tight">
+                                Note: {inq.message}
+                              </p>
+                            )}
+                          </td>
                           <td className="px-6 py-6">
                             <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${inq.status === 'Completed' ? 'bg-green-100 text-green-700' : inq.status === 'Cancelled' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>{inq.status}</span>
                           </td>

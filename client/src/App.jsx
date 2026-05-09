@@ -6,6 +6,8 @@ import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
 import ServiceDetail from './pages/ServiceDetail';
 import About from './pages/About';
+import Blog from './pages/Blog';
+import BlogPost from './pages/BlogPost';
 import AnnouncementBanner from './components/AnnouncementBanner';
 
 function App() {
@@ -20,6 +22,8 @@ function App() {
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/service/:type" element={<ServiceDetail />} />
           <Route path="/about" element={<About />} />
+          <Route path="/blog" element={<Blog />} />
+          <Route path="/blog/:id" element={<BlogPost />} />
         </Routes>
       </div>
     </Router>
