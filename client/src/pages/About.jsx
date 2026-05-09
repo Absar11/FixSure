@@ -4,6 +4,7 @@ import Footer from '../components/Footer';
 import { FiCheckCircle, FiShield, FiAward, FiClock, FiStar, FiMapPin } from 'react-icons/fi';
 import aboutImg from '../assets/hero_bg2.png';
 import ReviewForm from '../components/ReviewForm';
+import api from '../utils/api';
 
 const reviewsData = [
   {
@@ -49,7 +50,7 @@ const About = () => {
 
   const fetchApprovedReviews = async () => {
     try {
-      const response = await axios.get(`http://${window.location.hostname}:5000/api/reviews/approved`);
+      const response = await api.get('/api/reviews/approved');
       if (response.data.length > 0) {
         setDbReviews(response.data);
       }

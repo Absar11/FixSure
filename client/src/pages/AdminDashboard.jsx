@@ -31,7 +31,7 @@ const AdminDashboard = () => {
 
   const fetchInquiries = async () => {
     try {
-      const response = await axios.get(`http://${window.location.hostname}:5000/api/inquiries`);
+      const response = await api.get('/api/inquiries');
       setInquiries(response.data);
     } catch (error) {
       toast.error('Failed to fetch inquiries');
@@ -42,7 +42,7 @@ const AdminDashboard = () => {
 
   const fetchReviews = async () => {
     try {
-      const response = await axios.get(`http://${window.location.hostname}:5000/api/reviews/all`);
+      const response = await api.get('/api/reviews/all');
       setReviews(response.data);
     } catch (error) {
       console.error('Failed to fetch reviews');
@@ -56,7 +56,7 @@ const AdminDashboard = () => {
     fetchInquiries();
     fetchReviews();
 
-    const socket = io(`http://${window.location.hostname}:5000`, {
+    const socket = io(API_BASE_URL, {
       transports: ['websocket', 'polling']
     });
 
@@ -76,7 +76,7 @@ const AdminDashboard = () => {
 
   const updateStatus = async (id, status) => {
     try {
-      const res = await axios.put(`http://${window.location.hostname}:5000/api/inquiries/${id}`, { status });
+      const res = await api.put(`/api/inquiries/${id}`, { status });
       setInquiries(prev => prev.map(inq => inq._id === id ? res.data : inq));
       toast.success(`Status updated to ${status}`);
     } catch (error) {
@@ -87,7 +87,7 @@ const AdminDashboard = () => {
   const deleteInquiry = async (id) => {
     if (!window.confirm('Delete this inquiry?')) return;
     try {
-      await axios.delete(`http://${window.location.hostname}:5000/api/inquiries/${id}`);
+      await api.delete(`/api/inquiries/${id}`);
       setInquiries(prev => prev.map(inq => inq._id === id ? { ...inq, status: 'Deleted' } : inq).filter(i => i.status !== 'Deleted'));
       toast.success('Deleted successfully');
       fetchInquiries();
@@ -98,7 +98,7 @@ const AdminDashboard = () => {
 
   const handleReviewStatus = async (id, status) => {
     try {
-      await axios.put(`http://${window.location.hostname}:5000/api/reviews/${id}/status`, { status });
+      await api.put(`/api/reviews/${id}/status`, { status });
       toast.success(`Review ${status.toLowerCase()}`);
       fetchReviews();
     } catch (error) {
@@ -109,7 +109,7 @@ const AdminDashboard = () => {
   const handleDeleteReview = async (id) => {
     if (!window.confirm('Delete this review?')) return;
     try {
-      await axios.delete(`http://${window.location.hostname}:5000/api/reviews/${id}`);
+      await api.delete(`/api/reviews/${id}`);
       toast.success('Review deleted');
       fetchReviews();
     } catch (error) {
@@ -120,7 +120,7 @@ const AdminDashboard = () => {
   const handleGenerateBill = async (e) => {
     e.preventDefault();
     try {
-      const res = await axios.post(`http://${window.location.hostname}:5000/api/inquiries/generate-bill/${selectedInquiry._id}`, billData);
+      const res = await api.post(`/api/inquiries/generate-bill/${selectedInquiry._id}`, billData);
       toast.success('Bill generated!');
       setShowBillModal(false);
       fetchInquiries();

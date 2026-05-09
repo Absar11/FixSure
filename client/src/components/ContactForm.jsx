@@ -44,7 +44,7 @@ const ContactForm = ({ minimal = false, preselectedService = 'AC Repair' }) => {
     setIsSubmitting(true);
     const loadingToast = toast.loading('Submitting your request...');
     try {
-      await axios.post(`http://${window.location.hostname}:5000/api/inquiries`, formData);
+      await api.post('/api/inquiries', formData);
       toast.success('Service Request Sent! We will call you shortly.', { id: loadingToast });
       setFormData({ name: '', phone: '', serviceType: 'AC Repair', address: '', message: '' });
     } catch (error) {

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import api from '../utils/api';
 import { toast } from 'react-hot-toast';
 import { FiStar, FiSend, FiUser, FiMapPin, FiMessageSquare } from 'react-icons/fi';
 
@@ -20,7 +20,7 @@ const ReviewForm = () => {
     setIsSubmitting(true);
     const loadingToast = toast.loading('Submitting your feedback...');
     try {
-      await axios.post(`http://${window.location.hostname}:5000/api/reviews`, formData);
+      await api.post('/api/reviews', formData);
       toast.success('Thank you! Your review has been submitted for approval.', { id: loadingToast });
       setFormData({ name: '', location: '', rating: 5, message: '' });
     } catch (error) {
