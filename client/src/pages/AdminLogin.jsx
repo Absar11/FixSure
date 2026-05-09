@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import api from '../utils/api';
 import { toast } from 'react-hot-toast';
 import { FiLock, FiUser, FiArrowRight } from 'react-icons/fi';
 
 const AdminLogin = () => {
   const [credentials, setCredentials] = useState({ username: '', password: '' });
-  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -15,46 +15,81 @@ const AdminLogin = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
     try {
-      // Since we haven't set up the initial admin user in DB via seeding yet,
-      // I'll leave this functional but in reality you'd need to seed a user.
-      const res = await axios.post('http://192.168.29.141:5000/api/admin/login', {
+      const res = await api.post('/api/admin/login', {
         username: credentials.username.trim(),
         password: credentials.password.trim()
       });
       localStorage.setItem('adminToken', res.data.token);
+      toast.success('Welcome Back, Admin!');
       navigate('/admin/dashboard');
     } catch (err) {
-      setError('Invalid credentials');
+      console.error('Login Error:', err);
+      toast.error(err.response?.data?.message || 'Invalid Credentials');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-brand-light">
-      <div className="bg-white p-10 rounded-2xl shadow-xl w-full max-w-md border border-gray-100">
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold mb-2">
-            <span className="text-brand-navy">Fix</span>
-            <span className="text-brand-orange">Sure</span> Admin
-          </h2>
-          <p className="text-gray-500">Sign in to manage service requests</p>
+    <div className="min-h-screen bg-brand-navy flex items-center justify-center p-6 font-sans">
+      <div className="max-w-md w-full">
+        <div className="bg-white rounded-[50px] shadow-2xl p-10 md:p-16 relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-2 bg-brand-orange"></div>
+          
+          <div className="text-center mb-10">
+            <h1 className="text-4xl font-black text-brand-navy tracking-tighter uppercase italic">Admin <span className="text-brand-orange">Login</span></h1>
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] mt-2">Manage your business dashboard</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="relative group">
+              <FiUser className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-brand-orange" />
+              <input
+                type="text"
+                name="username"
+                placeholder="Username"
+                required
+                value={credentials.username}
+                onChange={handleChange}
+                className="w-full pl-12 pr-4 py-4 rounded-2xl bg-gray-50 border border-transparent focus:bg-white focus:border-brand-orange outline-none font-bold text-sm"
+              />
+            </div>
+
+            <div className="relative group">
+              <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-brand-orange" />
+              <input
+                type="password"
+                name="password"
+                placeholder="Password"
+                required
+                value={credentials.password}
+                onChange={handleChange}
+                className="w-full pl-12 pr-4 py-4 rounded-2xl bg-gray-50 border border-transparent focus:bg-white focus:border-brand-orange outline-none font-bold text-sm"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full bg-brand-navy hover:bg-gray-800 text-white font-black py-5 rounded-2xl shadow-xl transition-all transform hover:-translate-y-1 flex items-center justify-center space-x-3 uppercase tracking-widest text-sm"
+            >
+              {isSubmitting ? 'Signing In...' : (
+                <>
+                  <span>Sign In</span>
+                  <FiArrowRight />
+                </>
+              )}
+            </button>
+          </form>
+
+          <div className="mt-8 text-center">
+            <Link to="/admin/register" className="text-xs font-black text-gray-400 hover:text-brand-orange uppercase tracking-widest transition-colors">
+              New Admin? Create Account
+            </Link>
+          </div>
         </div>
-        
-        {error && <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-6 text-center">{error}</div>}
-        
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Username</label>
-            <input type="text" name="username" value={credentials.username} onChange={handleChange} required className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-orange" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
-            <input type="password" name="password" value={credentials.password} onChange={handleChange} required className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-orange" />
-          </div>
-          <button type="submit" className="w-full bg-brand-navy hover:bg-gray-800 text-white font-bold py-4 rounded-xl shadow-lg transition-all">
-            Sign In
-          </button>
-        </form>
       </div>
     </div>
   );
