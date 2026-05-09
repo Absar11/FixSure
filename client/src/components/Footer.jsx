@@ -1,5 +1,6 @@
 import React from 'react';
 import { FiPhone, FiMail, FiMapPin, FiFacebook, FiInstagram, FiTwitter } from 'react-icons/fi';
+import { Link } from 'react-router-dom';
 
 const Footer = () => {
   return (
@@ -34,7 +35,7 @@ const Footer = () => {
             <ul className="space-y-3">
               <li><a href="#home" className="text-gray-400 hover:text-brand-orange transition-colors">Home</a></li>
               <li><a href="#services" className="text-gray-400 hover:text-brand-orange transition-colors">Services</a></li>
-              <li><a href="#about" className="text-gray-400 hover:text-brand-orange transition-colors">About Us</a></li>
+              <li><Link to="/about" className="text-gray-400 hover:text-brand-orange transition-colors">About Us</Link></li>
               <li><a href="#contact" className="text-gray-400 hover:text-brand-orange transition-colors">Contact</a></li>
               <li><a href="/admin/login" className="text-gray-400 hover:text-brand-orange transition-colors">Admin Login</a></li>
             </ul>

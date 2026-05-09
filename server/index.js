@@ -24,9 +24,14 @@ app.set('io', io);
 
 app.get('/api/ping', (req, res) => res.send('pong'));
 
-// Routes
-app.use('/api/inquiries', require('./routes/inquiryRoutes'));
-app.use('/api/admin', require('./routes/adminRoutes'));
+// Routes Configuration
+const inquiryRoutes = require('./routes/inquiryRoutes');
+const adminRoutes = require('./routes/adminRoutes');
+const reviewRoutes = require('./routes/reviewRoutes');
+
+app.use('/api/inquiries', inquiryRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/reviews', reviewRoutes);
 
 // Socket.io connection logging
 io.on('connection', (socket) => {

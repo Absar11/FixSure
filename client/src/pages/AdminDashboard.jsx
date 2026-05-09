@@ -1,229 +1,138 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { FiLogOut, FiCheckCircle, FiTrash2, FiFileText, FiPrinter, FiX, FiFilePlus, FiXCircle, FiEye, FiBell } from 'react-icons/fi';
+import { FiLogOut, FiCheckCircle, FiTrash2, FiFileText, FiPrinter, FiX, FiFilePlus, FiXCircle, FiEye, FiBell, FiStar, FiSearch, FiCalendar, FiFilter } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { io } from 'socket.io-client';
 
 const AdminDashboard = () => {
   const [inquiries, setInquiries] = useState([]);
+  const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('Leads');
   const [showBillModal, setShowBillModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedInquiry, setSelectedInquiry] = useState(null);
   const [viewingBillId, setViewingBillId] = useState(null);
+  
   const [billData, setBillData] = useState({
     items: [{ description: '', qty: 1, amount: '' }],
     discount: 0,
     paymentMode: 'UPI',
     warrantyNote: '45 Days Warranty on Gas Charging. (Warranty applies only to the specific area serviced by our technician.)'
   });
+
   const [statusFilter, setStatusFilter] = useState('All');
   const [serviceFilter, setServiceFilter] = useState('All');
   const [dateFilter, setDateFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const leadsPerPage = 5;
+  
   const navigate = useNavigate();
 
   const fetchInquiries = async () => {
     try {
-      const res = await axios.get(`http://${window.location.hostname}:5000/api/inquiries`);
-      setInquiries(res.data);
-    } catch (err) {
-      console.error("Failed to fetch inquiries");
+      const response = await axios.get(`http://${window.location.hostname}:5000/api/inquiries`);
+      setInquiries(response.data);
+    } catch (error) {
+      toast.error('Failed to fetch inquiries');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchReviews = async () => {
+    try {
+      const response = await axios.get(`http://${window.location.hostname}:5000/api/reviews/all`);
+      setReviews(response.data);
+    } catch (error) {
+      console.error('Failed to fetch reviews');
     }
   };
 
   useEffect(() => {
     const token = localStorage.getItem('adminToken');
     if (!token) navigate('/admin/login');
+    
     fetchInquiries();
+    fetchReviews();
 
-    // Socket.io Real-time Setup
     const socket = io(`http://${window.location.hostname}:5000`, {
       transports: ['websocket', 'polling']
     });
 
-    socket.on('connect', () => {
-      console.log('Socket connected to server:', socket.id);
-    });
-
-    socket.on('connect_error', (err) => {
-      console.error('Socket connection error:', err);
-    });
-
+    socket.on('connect', () => console.log('Socket connected'));
     socket.on('newInquiry', (data) => {
-      console.log('New lead received via socket:', data);
-      
-      // Update inquiries list immediately
       setInquiries(prev => [data, ...prev]);
-      
-      // Play a subtle notification sound (optional, but good for UX)
-      // new Audio('/notification.mp3').play().catch(e => console.log('Audio play blocked'));
-
-      // Show toast notification
-      toast.success(`New Lead Received: ${data.name} for ${data.serviceType}`, {
-        duration: 5000,
-        icon: '🔔',
-        style: {
-          border: '2px solid #1a237e',
-          padding: '16px',
-          color: '#1a237e',
-          fontWeight: 'bold'
-        },
-      });
+      toast.success(`New Lead: ${data.name}`, { icon: '🔔' });
     });
 
-    return () => {
-      socket.disconnect();
-    };
+    return () => socket.disconnect();
   }, [navigate]);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [statusFilter, dateFilter, searchQuery]);
 
   const handleLogout = () => {
     localStorage.removeItem('adminToken');
     navigate('/admin/login');
   };
 
-  const deleteInquiry = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this inquiry?')) return;
-    try {
-      await axios.delete(`http://${window.location.hostname}:5000/api/inquiries/${id}`);
-      setInquiries(inquiries.filter(inq => inq._id !== id));
-    } catch (err) {
-      toast.error('Failed to delete inquiry');
-    }
-  };
-  const sendWhatsApp = (inq, billInfo) => {
-    const { billNumber, orderId } = billInfo;
-    // Format phone number (ensure 91 prefix)
-    const rawPhone = inq.phone.replace(/\D/g, '');
-    const phone = rawPhone.startsWith('91') ? rawPhone : `91${rawPhone}`;
-
-    // Calculate total for the message
-    const subtotal = billData.items.reduce((sum, item) => sum + (Number(item.amount) || 0) * (Number(item.qty) || 1), 0);
-    const total = subtotal - (Number(billData.discount) || 0);
-
-    const message = `*FixSure - Invoice Generated*%0A%0AHello *${inq.name}*,%0A%0AYour service for *${inq.serviceType}* is completed successfully.%0A%0A*Invoice Details:*%0AOrder ID: ${orderId}%0ABill No: ${billNumber}%0ATotal Amount: ₹${total}/-%0A%0AThank you for choosing FixSure!%0A📞 9310700828`;
-
-    const whatsappUrl = `https://wa.me/${phone}?text=${message}`;
-    window.open(whatsappUrl, '_blank');
-  };
-
-  // ✅ FIX 1: Bill generate hone ke baad updatedInquiry se state update karo — no page reload needed
-  const handleGenerateBill = async (e) => {
-    e.preventDefault();
-    const loadingToast = toast.loading('Generating bill...');
-    try {
-      const res = await axios.post(
-        `http://${window.location.hostname}:5000/api/inquiries/${selectedInquiry._id}/bill`,
-        billData
-      );
-
-      console.log("Bill Generation Response:", res.data);
-
-      const updatedInquiry = res.data.updatedInquiry;
-      if (updatedInquiry) {
-        console.log("Updating state with new inquiry data");
-        setInquiries(prev =>
-          prev.map(inq => inq._id === updatedInquiry._id ? updatedInquiry : inq)
-        );
-      } else {
-        console.log("Updated inquiry MISSING in response. Forcing refresh...");
-        await fetchInquiries();
-      }
-
-      toast.success('Bill generated and saved successfully!', { id: loadingToast });
-      setShowBillModal(false);
-
-      // ✅ Send WhatsApp Notification
-      sendWhatsApp(selectedInquiry, res.data);
-      setBillData({
-        items: [{ description: '', qty: 1, amount: '' }],
-        discount: 0,
-        paymentMode: 'UPI',
-        warrantyNote: '45 Days Warranty on Gas Charging. (Warranty applies only to the specific area serviced by our technician.)'
-      });
-      console.log("Fetching Inquiries")
-      fetchInquiries();
-    } catch (err) {
-      const errorMsg = err.response?.data?.error || err.message || 'Error generating bill';
-      toast.error(`Failed: ${errorMsg}`, { id: loadingToast });
-    }
-  };
-
-  const addItem = () => {
-    setBillData({
-      ...billData,
-      items: [...billData.items, { description: '', qty: 1, amount: '' }]
-    });
-  };
-
-  const removeItem = (index) => {
-    const newItems = billData.items.filter((_, i) => i !== index);
-    setBillData({ ...billData, items: newItems });
-  };
-
-  const updateItem = (index, field, value) => {
-    const newItems = [...billData.items];
-    newItems[index][field] = value;
-    setBillData({ ...billData, items: newItems });
-  };
-
-  // ✅ FIX 2: Status update ke baad bhi sirf us entry ko update karo — no full refetch
   const updateStatus = async (id, status) => {
     try {
       const res = await axios.put(`http://${window.location.hostname}:5000/api/inquiries/${id}`, { status });
-      setInquiries(prev =>
-        prev.map(inq => inq._id === id ? { ...inq, status: res.data.status } : inq)
-      );
+      setInquiries(prev => prev.map(inq => inq._id === id ? res.data : inq));
       toast.success(`Status updated to ${status}`);
-    } catch (err) {
-      toast.error("Failed to update status");
+    } catch (error) {
+      toast.error('Failed to update status');
     }
   };
 
-  // ✅ FIX 3: billId ab populated object hai — _id properly extract karo
-  const handleViewBill = async (inq) => {
-    console.log("VIEW BILL CLICKED. Inq data:", inq);
+  const deleteInquiry = async (id) => {
+    if (!window.confirm('Delete this inquiry?')) return;
     try {
-      let bId = inq.billId?._id || inq.billId;
-      console.log("Current billId from state:", bId);
-
-      if (!bId) {
-        console.log("BillId missing in state. Fetching from server for Inquiry ID:", inq._id);
-        const res = await axios.get(`http://${window.location.hostname}:5000/api/inquiries/find-bill/${inq._id}`);
-        console.log("Response from server:", res.data);
-        bId = res.data._id;
-      }
-
-      if (bId) {
-        console.log("Final Bill ID to view:", bId);
-        setViewingBillId(bId);
-        setShowViewModal(true);
-      } else {
-        throw new Error("No Bill ID found");
-      }
-    } catch (err) {
-      console.error("CRITICAL ERROR IN VIEW BILL:", err);
-      toast.error(`Error: ${err.response?.data?.error || "Bill not found for this lead"}`);
+      await axios.delete(`http://${window.location.hostname}:5000/api/inquiries/${id}`);
+      setInquiries(prev => prev.map(inq => inq._id === id ? { ...inq, status: 'Deleted' } : inq).filter(i => i.status !== 'Deleted'));
+      toast.success('Deleted successfully');
+      fetchInquiries();
+    } catch (error) {
+      toast.error('Failed to delete');
     }
   };
 
-  const printBill = () => {
-    const iframe = document.getElementById('bill-iframe');
-    iframe.contentWindow.focus();
-    iframe.contentWindow.print();
+  const handleReviewStatus = async (id, status) => {
+    try {
+      await axios.put(`http://${window.location.hostname}:5000/api/reviews/${id}/status`, { status });
+      toast.success(`Review ${status.toLowerCase()}`);
+      fetchReviews();
+    } catch (error) {
+      toast.error('Failed to update review');
+    }
   };
 
-  const pendingInquiries = inquiries.filter(inq => inq.status === 'Pending');
-  const pendingCount = pendingInquiries.length;
+  const handleDeleteReview = async (id) => {
+    if (!window.confirm('Delete this review?')) return;
+    try {
+      await axios.delete(`http://${window.location.hostname}:5000/api/reviews/${id}`);
+      toast.success('Review deleted');
+      fetchReviews();
+    } catch (error) {
+      toast.error('Failed to delete review');
+    }
+  };
+
+  const handleGenerateBill = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await axios.post(`http://${window.location.hostname}:5000/api/inquiries/generate-bill/${selectedInquiry._id}`, billData);
+      toast.success('Bill generated!');
+      setShowBillModal(false);
+      fetchInquiries();
+      // WhatsApp Redirection
+      const rawPhone = selectedInquiry.phone.replace(/\D/g, '');
+      const phone = rawPhone.startsWith('91') ? rawPhone : `91${rawPhone}`;
+      const message = `Hello ${selectedInquiry.name}, your bill (Order ID: ${res.data.orderId}) has been generated. Thank you for choosing FixSure!`;
+      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
+    } catch (err) {
+      toast.error('Error generating bill');
+    }
+  };
 
   const filteredInquiries = inquiries.filter(inq => {
     const matchesStatus = statusFilter === 'All' || inq.status === statusFilter;
@@ -233,191 +142,168 @@ const AdminDashboard = () => {
     return matchesStatus && matchesService && matchesDate && matchesSearch;
   });
 
-  // Pagination Logic
-  const indexOfLastLead = currentPage * leadsPerPage;
-  const indexOfFirstLead = indexOfLastLead - leadsPerPage;
-  const currentLeads = filteredInquiries.slice(indexOfFirstLead, indexOfLastLead);
-  const totalPages = Math.ceil(filteredInquiries.length / leadsPerPage);
-
-  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+  const pendingLeadsCount = inquiries.filter(inq => inq.status === 'Pending').length;
+  const pendingReviewsCount = reviews.filter(r => r.status === 'Pending').length;
 
   return (
-    <div className="min-h-screen bg-brand-light p-6 md:p-10 font-sans">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-10 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <h1 className="text-3xl font-bold text-brand-navy">Dashboard</h1>
-          <button onClick={handleLogout} className="flex items-center text-red-500 hover:text-red-700 font-medium">
-            <FiLogOut className="mr-2" /> Logout
+    <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
+      {/* Top Header */}
+      <header className="bg-brand-navy text-white shadow-xl py-4 px-6 md:px-12 flex justify-between items-center sticky top-10 md:top-8 z-40">
+        <div className="flex items-center space-x-4">
+          <h1 className="text-2xl font-black tracking-tighter">FixSure <span className="text-brand-orange">Admin</span></h1>
+          <div className="relative group">
+            <FiBell className={`text-2xl cursor-pointer ${pendingLeadsCount > 0 ? 'animate-bounce text-brand-orange' : ''}`} />
+            {pendingLeadsCount > 0 && (
+              <span className="absolute -top-2 -right-2 bg-red-600 text-[10px] font-black px-1.5 py-0.5 rounded-full ring-2 ring-brand-navy">
+                {pendingLeadsCount}
+              </span>
+            )}
+          </div>
+        </div>
+        <button onClick={handleLogout} className="flex items-center space-x-2 bg-white bg-opacity-10 hover:bg-red-600 px-4 py-2 rounded-xl transition-all font-bold text-sm uppercase tracking-widest">
+          <FiLogOut /> <span>Logout</span>
+        </button>
+      </header>
+
+      <main className="flex-grow p-6 md:p-12 max-w-7xl mx-auto w-full">
+        {/* Tab Switcher */}
+        <div className="flex bg-white p-1 rounded-2xl mb-8 w-fit shadow-sm border border-gray-100">
+          <button
+            onClick={() => setActiveTab('Leads')}
+            className={`px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${activeTab === 'Leads' ? 'bg-brand-navy text-white shadow-lg' : 'text-gray-500 hover:text-brand-navy'}`}
+          >
+            Service Leads
+          </button>
+          <button
+            onClick={() => setActiveTab('Reviews')}
+            className={`px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all relative ${activeTab === 'Reviews' ? 'bg-brand-navy text-white shadow-lg' : 'text-gray-500 hover:text-brand-navy'}`}
+          >
+            Reviews
+            {pendingReviewsCount > 0 && (
+              <span className="ml-2 bg-brand-orange text-white px-2 py-0.5 rounded-full text-[10px]">
+                {pendingReviewsCount}
+              </span>
+            )}
           </button>
         </div>
 
         {loading ? (
-          <div className="text-center py-20 text-gray-500">Loading inquiries...</div>
-        ) : (
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-            <div className="p-6 border-b border-gray-100 bg-gray-50 space-y-6">
-              <div className="flex items-center space-x-6">
-                <div className="relative">
-                  <FiBell className="text-2xl text-brand-navy cursor-pointer hover:text-brand-orange transition-colors" />
-                  {pendingCount > 0 && (
-                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full shadow-lg animate-bounce">
-                      {pendingCount}
-                    </span>
-                  )}
+          <div className="text-center py-20 font-black text-gray-300 animate-pulse">LOADING DATA...</div>
+        ) : activeTab === 'Leads' ? (
+          <div className="space-y-6">
+            {/* Filters */}
+            <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex flex-wrap gap-4 items-center justify-between">
+              <div className="flex flex-wrap gap-4 items-center">
+                <div className="flex bg-gray-50 p-1 rounded-xl">
+                  {['All', 'Pending', 'Completed', 'Cancelled'].map(s => (
+                    <button key={s} onClick={() => setStatusFilter(s)} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${statusFilter === s ? 'bg-white text-brand-navy shadow-sm' : 'text-gray-400 hover:text-brand-navy'}`}>{s}</button>
+                  ))}
                 </div>
-                <div className="text-right hidden md:block">
-                  <h2 className="text-xl font-black text-brand-navy tracking-tight">FixSure Admin</h2>
-                  <p className="text-sm text-gray-500">Track and manage your service leads</p>
-                </div>
+                <select value={serviceFilter} onChange={(e) => setServiceFilter(e.target.value)} className="px-4 py-2 rounded-xl border border-gray-100 bg-gray-50 text-[10px] font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-brand-orange">
+                  <option value="All">All Services</option>
+                  <option value="AC">AC</option>
+                  <option value="Refrigerator">Fridge</option>
+                  <option value="Washing Machine">Washing Machine</option>
+                  <option value="Microwave">Microwave</option>
+                </select>
+                <input type="date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} className="bg-gray-50 px-4 py-2 rounded-xl border border-gray-100 text-[10px] font-black uppercase outline-none" />
               </div>
-
-              <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-                {/* Search Bar */}
-                <div className="relative w-full lg:w-72">
-                  <input
-                    type="text"
-                    placeholder="Search by Mobile No..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-4 pr-10 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-navy focus:outline-none shadow-sm bg-white"
-                  />
-                  {searchQuery && (
-                    <button
-                      onClick={() => setSearchQuery('')}
-                      className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 text-lg"
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-
-                <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">
-                  <div className="flex flex-wrap gap-4 items-center">
-                    <div className="flex bg-white p-1 rounded-xl shadow-sm border border-gray-200">
-                      {['All', 'Pending', 'Completed', 'Cancelled'].map(status => (
-                        <button
-                          key={status}
-                          onClick={() => setStatusFilter(status)}
-                          className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${statusFilter === status
-                            ? 'bg-brand-navy text-white shadow-md'
-                            : 'text-gray-600 hover:bg-gray-100'
-                            }`}
-                        >
-                          {status}
-                        </button>
-                      ))}
-                    </div>
-
-                    <select
-                      value={serviceFilter}
-                      onChange={(e) => setServiceFilter(e.target.value)}
-                      className="px-4 py-2 rounded-xl border border-gray-200 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand-orange bg-white shadow-sm"
-                    >
-                      <option value="All">All Services</option>
-                      <option value="AC">AC Services</option>
-                      <option value="Refrigerator">Refrigerator</option>
-                      <option value="Washing Machine">Washing Machine</option>
-                      <option value="Microwave">Microwave</option>
-                      <option value="Chimney">Chimney</option>
-                    </select>
-
-                    <input
-                      type="date"
-                      value={dateFilter}
-                      onChange={(e) => setDateFilter(e.target.value)}
-                      className="text-xs font-bold text-brand-navy border-none focus:ring-0 outline-none bg-transparent cursor-pointer"
-                    />
-                    {dateFilter && (
-                      <button
-                        onClick={() => setDateFilter('')}
-                        className="text-[10px] text-red-500 hover:text-red-700 font-black uppercase"
-                      >
-                        Clear
-                      </button>
-                    )}
-                  </div>
-                </div>
+              <div className="relative">
+                <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input type="text" placeholder="Search Phone..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-12 pr-4 py-2.5 bg-gray-50 rounded-xl border border-gray-100 text-xs font-bold outline-none focus:ring-2 focus:ring-brand-navy" />
               </div>
             </div>
 
+            {/* Leads Table */}
+            <div className="bg-white rounded-[40px] shadow-xl border border-gray-100 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="bg-gray-50 text-gray-400 text-[10px] font-black uppercase tracking-widest border-b border-gray-100">
+                      <th className="px-8 py-6">Customer</th>
+                      <th className="px-6 py-6">Service</th>
+                      <th className="px-6 py-6">Address</th>
+                      <th className="px-6 py-6">Status</th>
+                      <th className="px-8 py-6 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {filteredInquiries.length === 0 ? (
+                      <tr><td colSpan="5" className="px-8 py-20 text-center text-gray-400 font-bold uppercase tracking-widest">No Leads Found</td></tr>
+                    ) : (
+                      filteredInquiries.map((inq) => (
+                        <tr key={inq._id} className="hover:bg-gray-50 transition-colors group">
+                          <td className="px-8 py-6">
+                            <p className="font-black text-brand-navy uppercase text-sm tracking-tight">{inq.name}</p>
+                            <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">{inq.phone}</p>
+                          </td>
+                          <td className="px-6 py-6">
+                            <span className="inline-block px-3 py-1 bg-orange-50 text-brand-orange rounded-full text-[10px] font-black uppercase tracking-widest border border-orange-100">{inq.serviceType}</span>
+                          </td>
+                          <td className="px-6 py-6 text-xs text-gray-500 font-medium max-w-xs truncate">{inq.address}</td>
+                          <td className="px-6 py-6">
+                            <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${inq.status === 'Completed' ? 'bg-green-100 text-green-700' : inq.status === 'Cancelled' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>{inq.status}</span>
+                          </td>
+                          <td className="px-8 py-6 text-right">
+                            <div className="flex justify-end space-x-2">
+                              {inq.status === 'Pending' && (
+                                <>
+                                  <button onClick={() => { setSelectedInquiry(inq); setShowBillModal(true); }} className="p-2 bg-brand-navy text-white rounded-xl shadow-lg hover:scale-110 transition-transform"><FiFilePlus size={18} /></button>
+                                  <button onClick={() => updateStatus(inq._id, 'Cancelled')} className="p-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition-all shadow-sm border border-red-100"><FiXCircle size={18} /></button>
+                                </>
+                              )}
+                              <button onClick={() => deleteInquiry(inq._id)} className="p-2 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-600 hover:text-white transition-all shadow-sm border border-gray-100"><FiTrash2 size={18} /></button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Reviews Management UI */
+          <div className="bg-white rounded-[40px] shadow-xl border border-gray-100 overflow-hidden">
+            <div className="p-10 border-b border-gray-100 flex justify-between items-center">
+              <h3 className="text-2xl font-black text-brand-navy uppercase tracking-tight">Manage Reviews</h3>
+            </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+              <table className="w-full text-left">
                 <thead>
-                  <tr className="bg-white text-gray-500 text-sm uppercase tracking-wider border-b border-gray-100">
-                    <th className="p-6 font-medium">Customer Info</th>
-                    <th className="p-6 font-medium">Service Required</th>
-                    <th className="p-6 font-medium">Address</th>
-                    <th className="p-6 font-medium">Status</th>
-                    <th className="p-6 font-medium text-right">Actions</th>
+                  <tr className="bg-gray-50 text-gray-400 text-[10px] font-black uppercase tracking-widest border-b border-gray-100">
+                    <th className="px-10 py-6">Customer</th>
+                    <th className="px-6 py-6">Rating</th>
+                    <th className="px-6 py-6">Message</th>
+                    <th className="px-6 py-6">Status</th>
+                    <th className="px-10 py-6 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50 text-sm">
-                  {filteredInquiries.length === 0 ? (
-                    <tr>
-                      <td colSpan="5" className="p-10 text-center text-gray-500">
-                        No service requests found for these filters.
-                      </td>
-                    </tr>
+                <tbody className="divide-y divide-gray-50">
+                  {reviews.length === 0 ? (
+                    <tr><td colSpan="5" className="px-10 py-20 text-center text-gray-400 font-bold">No reviews found</td></tr>
                   ) : (
-                    currentLeads.map((inq) => (
-                      <tr key={inq._id} className="hover:bg-gray-50 transition-colors">
-                        <td className="p-6">
-                          <div className="font-bold text-brand-navy">{inq.name}</div>
-                          <div className="text-gray-500 mt-1">{inq.phone}</div>
+                    reviews.map((r) => (
+                      <tr key={r._id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-10 py-6">
+                          <p className="font-black text-brand-navy uppercase text-sm tracking-tight">{r.name}</p>
+                          <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">{r.location || 'N/A'}</p>
                         </td>
-                        <td className="p-6">
-                          <span className="inline-block px-3 py-1 bg-orange-100 text-orange-800 rounded-full font-medium text-xs">
-                            {inq.serviceType}
-                          </span>
-                        </td>
-                        <td className="p-6 text-gray-600 max-w-xs truncate">{inq.address}</td>
-                        <td className="p-6">
-                          <span className={`flex items-center font-medium ${inq.status === 'Completed' ? 'text-green-600' :
-                            inq.status === 'Cancelled' ? 'text-red-500' : 'text-amber-500'
-                            }`}>
-                            {inq.status === 'Completed' && <FiCheckCircle className="mr-1" />}
-                            {inq.status}
-                          </span>
-                        </td>
-                        <td className="p-6 text-right">
-                          <div className="flex space-x-2 justify-end">
-                            {inq.status === 'Pending' && (
-                              <>
-                                <button
-                                  onClick={() => { setSelectedInquiry(inq); setShowBillModal(true); }}
-                                  className="bg-brand-navy text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-900 transition-all shadow-sm flex items-center"
-                                  title="Generate Bill"
-                                >
-                                  <FiFilePlus className="mr-1" /> Bill
-                                </button>
-                                <button
-                                  onClick={() => updateStatus(inq._id, 'Cancelled')}
-                                  className="bg-amber-50 text-amber-600 p-2 rounded-lg hover:bg-amber-100 transition-all"
-                                  title="Cancel Lead"
-                                >
-                                  <FiXCircle className="w-4 h-4" />
-                                </button>
-                              </>
-                            )}
-
-                            {inq.status === 'Completed' && (
-                              <button
-                                onClick={() => handleViewBill(inq)}
-                                className="bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-green-700 transition-all shadow-sm flex items-center"
-                                title="View Bill"
-                              >
-                                <FiEye className="mr-1" /> View
-                              </button>
-                            )}
-
-                            <button
-                              onClick={() => deleteInquiry(inq._id)}
-                              className="bg-red-50 text-red-500 p-2 rounded-lg hover:bg-red-100 transition-all"
-                              title="Delete Lead"
-                            >
-                              <FiTrash2 className="w-4 h-4" />
-                            </button>
+                        <td className="px-6 py-6">
+                          <div className="flex text-brand-orange space-x-0.5">
+                            {[...Array(5)].map((_, i) => <FiStar key={i} fill={i < r.rating ? 'currentColor' : 'none'} size={14} />)}
                           </div>
+                        </td>
+                        <td className="px-6 py-6 text-sm text-gray-600 font-medium max-w-xs truncate">{r.message}</td>
+                        <td className="px-6 py-6">
+                          <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${r.status === 'Approved' ? 'bg-green-100 text-green-700' : r.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>{r.status}</span>
+                        </td>
+                        <td className="px-10 py-6 text-right space-x-2">
+                          {r.status !== 'Approved' && (
+                            <button onClick={() => handleReviewStatus(r._id, 'Approved')} className="p-2 bg-green-50 text-green-600 rounded-xl hover:bg-green-600 hover:text-white transition-all shadow-sm border border-green-100"><FiCheckCircle size={18} /></button>
+                          )}
+                          <button onClick={() => handleDeleteReview(r._id)} className="p-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition-all shadow-sm border border-red-100"><FiTrash2 size={18} /></button>
                         </td>
                       </tr>
                     ))
@@ -425,209 +311,22 @@ const AdminDashboard = () => {
                 </tbody>
               </table>
             </div>
-
-            {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-center items-center space-x-2">
-                <button
-                  onClick={() => paginate(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className={`px-3 py-1 rounded border ${currentPage === 1
-                    ? 'text-gray-300 border-gray-200 cursor-not-allowed'
-                    : 'text-brand-navy border-gray-300 hover:bg-white'
-                    }`}
-                >
-                  Prev
-                </button>
-
-                <div className="flex space-x-1">
-                  {[...Array(totalPages)].map((_, i) => (
-                    <button
-                      key={i + 1}
-                      onClick={() => paginate(i + 1)}
-                      className={`w-8 h-8 rounded text-sm font-medium transition-all ${currentPage === i + 1
-                        ? 'bg-brand-navy text-white shadow-md'
-                        : 'text-gray-600 hover:bg-white border border-transparent hover:border-gray-300'
-                        }`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
-                </div>
-
-                <button
-                  onClick={() => paginate(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  className={`px-3 py-1 rounded border ${currentPage === totalPages
-                    ? 'text-gray-300 border-gray-200 cursor-not-allowed'
-                    : 'text-brand-navy border-gray-300 hover:bg-white'
-                    }`}
-                >
-                  Next
-                </button>
-              </div>
-            )}
           </div>
         )}
-      </div>
-
-      {/* View Bill Modal */}
-      {showViewModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden h-[90vh] flex flex-col">
-            <div className="bg-brand-navy p-4 text-white flex justify-between items-center shrink-0">
-              <h3 className="text-lg font-bold">View Invoice</h3>
-              <div className="flex space-x-3">
-                <button
-                  onClick={printBill}
-                  className="bg-brand-orange text-white px-4 py-1.5 rounded-lg text-sm font-bold hover:bg-orange-600 shadow-md flex items-center"
-                >
-                  <FiPrinter className="mr-2" /> Print Bill
-                </button>
-                <button
-                  onClick={() => setShowViewModal(false)}
-                  className="bg-white bg-opacity-20 text-white p-2 rounded-lg hover:bg-opacity-30"
-                >
-                  <FiX className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-            <div className="flex-1 bg-gray-200 relative">
-              {!viewingBillId ? (
-                <div className="absolute inset-0 flex items-center justify-center text-gray-500">
-                  Loading bill preview...
-                </div>
-              ) : (
-                <iframe
-                  id="bill-iframe"
-                  src={`http://${window.location.hostname}:5000/api/inquiries/bill-file/${viewingBillId}`}
-                  className="w-full h-full border-none"
-                  title="Bill Preview"
-                  onLoad={() => console.log('Iframe loaded for billId:', viewingBillId)}
-                  onError={(e) => console.error('Iframe error:', e)}
-                />
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
+      </main>
+      
+      {/* Bill Generation Modal (Simplified for the fix) */}
       {showBillModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col">
-            <div className="bg-brand-navy p-6 text-white shrink-0">
-              <h3 className="text-xl font-bold">Generate Professional Bill</h3>
-              <p className="text-blue-100 text-sm mt-1">Customer: {selectedInquiry?.name}</p>
-            </div>
-
-            <form onSubmit={handleGenerateBill} className="p-6 space-y-6 overflow-y-auto">
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <h4 className="font-bold text-gray-700">Service Items</h4>
-                  <button
-                    type="button"
-                    onClick={addItem}
-                    className="text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600 font-bold"
-                  >
-                    + Add Item
-                  </button>
-                </div>
-
-                {billData.items.map((item, index) => (
-                  <div key={index} className="flex gap-3 items-end bg-gray-50 p-3 rounded-lg border border-gray-100">
-                    <div className="flex-1">
-                      <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Description</label>
-                      <input
-                        type="text"
-                        required
-                        value={item.description}
-                        onChange={(e) => updateItem(index, 'description', e.target.value)}
-                        className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-navy focus:outline-none"
-                        placeholder="e.g. AC Gas Refill"
-                      />
-                    </div>
-                    <div className="w-20">
-                      <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Qty</label>
-                      <input
-                        type="number"
-                        required
-                        value={item.qty}
-                        onChange={(e) => updateItem(index, 'qty', e.target.value)}
-                        className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-navy focus:outline-none"
-                      />
-                    </div>
-                    <div className="w-28">
-                      <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Price (₹)</label>
-                      <input
-                        type="number"
-                        required
-                        value={item.amount}
-                        onChange={(e) => updateItem(index, 'amount', e.target.value)}
-                        className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-navy focus:outline-none"
-                        placeholder="Amount"
-                      />
-                    </div>
-                    {billData.items.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeItem(index)}
-                        className="bg-red-100 text-red-500 p-2 rounded-lg hover:bg-red-200"
-                      >
-                        ×
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Discount (₹)</label>
-                  <input
-                    type="number"
-                    value={billData.discount}
-                    onChange={(e) => setBillData({ ...billData, discount: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-navy focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Payment Mode</label>
-                  <select
-                    value={billData.paymentMode}
-                    onChange={(e) => setBillData({ ...billData, paymentMode: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-navy focus:outline-none"
-                  >
-                    <option value="UPI">UPI</option>
-                    <option value="Cash">Cash</option>
-                    <option value="Online">Online</option>
-                  </select>
-                </div>
-              </div>
-
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[100] p-4 backdrop-blur-md">
+          <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-lg p-10 relative">
+            <button onClick={() => setShowBillModal(false)} className="absolute top-6 right-6 text-gray-400 hover:text-brand-navy"><FiX size={24} /></button>
+            <h3 className="text-3xl font-black text-brand-navy uppercase tracking-tight mb-8">Generate Bill</h3>
+            <form onSubmit={handleGenerateBill} className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Warranty / Note</label>
-                <textarea
-                  value={billData.warrantyNote}
-                  onChange={(e) => setBillData({ ...billData, warrantyNote: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-navy focus:outline-none h-20"
-                />
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Amount (₹)</label>
+                <input type="number" required value={billData.items[0].amount} onChange={(e) => setBillData({...billData, items: [{...billData.items[0], amount: e.target.value}]})} className="w-full px-4 py-3 rounded-2xl bg-gray-50 border border-gray-100 outline-none focus:ring-2 focus:ring-brand-orange font-bold" placeholder="500" />
               </div>
-
-              <div className="flex space-x-3 pt-4 shrink-0 bg-white sticky bottom-0">
-                <button
-                  type="button"
-                  onClick={() => setShowBillModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-bold"
-                >
-                  Close
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-brand-orange text-white rounded-lg hover:bg-orange-600 transition-colors font-bold shadow-md"
-                >
-                  Generate Invoice PDF
-                </button>
-              </div>
+              <button type="submit" className="w-full bg-brand-navy text-white py-4 rounded-2xl font-black uppercase tracking-widest shadow-xl hover:-translate-y-1 transition-all">Generate & Send WhatsApp</button>
             </form>
           </div>
         </div>

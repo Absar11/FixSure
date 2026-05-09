@@ -22,7 +22,7 @@ const Navbar = () => {
     : (isHomePage ? 'text-white' : 'text-white'); // Both home and service pages have dark hero sections
 
   return (
-    <nav className={`fixed w-full z-50 transition-all duration-300 ${scrolled ? 'bg-white shadow-lg py-3' : 'bg-transparent py-5'}`}>
+    <nav className={`fixed w-full z-50 transition-all duration-300 top-10 md:top-8 ${scrolled ? 'bg-white shadow-lg py-3' : 'bg-transparent py-5'}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center">
           <div className="flex-shrink-0 flex items-center">
@@ -36,12 +36,12 @@ const Navbar = () => {
             {isHomePage ? (
               <>
                 <a href="#services" className={`${textColorClass} hover:text-brand-orange transition-colors font-bold uppercase text-xs tracking-widest`}>Services</a>
-                <a href="#about" className={`${textColorClass} hover:text-brand-orange transition-colors font-bold uppercase text-xs tracking-widest`}>About Us</a>
+                <Link to="/about" className={`${textColorClass} hover:text-brand-orange transition-colors font-bold uppercase text-xs tracking-widest`}>About Us</Link>
               </>
             ) : (
               <>
                 <Link to="/" className={`${textColorClass} hover:text-brand-orange transition-colors font-bold uppercase text-xs tracking-widest`}>Home</Link>
-                <a href="#services" className={`${textColorClass} hover:text-brand-orange transition-colors font-bold uppercase text-xs tracking-widest`}>Other Services</a>
+                <a href="/#services" className={`${textColorClass} hover:text-brand-orange transition-colors font-bold uppercase text-xs tracking-widest`}>Our Services</a>
               </>
             )}
             <a href="#contact" className="bg-brand-orange text-white px-8 py-3 rounded-xl hover:bg-orange-600 transition-all shadow-lg font-black uppercase text-xs tracking-widest transform hover:-translate-y-1">
@@ -64,11 +64,12 @@ const Navbar = () => {
             {isHomePage ? (
               <>
                 <a href="#services" className="block py-3 text-brand-navy font-black uppercase text-sm tracking-widest border-b border-gray-50" onClick={() => setIsOpen(false)}>Services</a>
-                <a href="#about" className="block py-3 text-brand-navy font-black uppercase text-sm tracking-widest border-b border-gray-50" onClick={() => setIsOpen(false)}>About Us</a>
+                <Link to="/about" className="block py-3 text-brand-navy font-black uppercase text-sm tracking-widest border-b border-gray-50" onClick={() => setIsOpen(false)}>About Us</Link>
               </>
             ) : (
               <>
                 <Link to="/" className="block py-3 text-brand-navy font-black uppercase text-sm tracking-widest border-b border-gray-100" onClick={() => setIsOpen(false)}>Home</Link>
+                <a href="/#services" className="block py-3 text-brand-navy font-black uppercase text-sm tracking-widest border-b border-gray-100" onClick={() => setIsOpen(false)}>Our Services</a>
               </>
             )}
             <a href="#contact" className="block py-4 text-center bg-brand-orange text-white font-black uppercase text-sm tracking-widest rounded-xl shadow-lg" onClick={() => setIsOpen(false)}>Book Now</a>
