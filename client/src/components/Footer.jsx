@@ -13,7 +13,7 @@ const Footer = () => {
               <span className="text-brand-orange">Sure</span>
             </h2>
             <p className="text-gray-400 mb-6 leading-relaxed">
-              Apke Ghar ka Sahi Saathi. Providing reliable, fast, and affordable AC repair and maintenance services directly to your doorstep.
+              FixSure (Apke Ghar ka Sahi Saathi). Providing reliable, fast, and affordable home appliance repair and maintenance services directly to your doorstep.
             </p>
             <div className="flex space-x-4">
               <a href="#" className="w-10 h-10 rounded-full bg-white bg-opacity-10 flex items-center justify-center hover:bg-brand-orange transition-colors">
@@ -46,11 +46,11 @@ const Footer = () => {
             <ul className="space-y-4">
               <li className="flex items-start">
                 <FiMapPin className="text-brand-orange mt-1 mr-3 flex-shrink-0" size={20} />
-                <span className="text-gray-400">123 Service Road, Tech Park, Mumbai, India</span>
+                <span className="text-gray-400">Delhi NCR, India</span>
               </li>
               <li className="flex items-center">
                 <FiPhone className="text-brand-orange mr-3 flex-shrink-0" size={20} />
-                <span className="text-gray-400">+91 98765 43210</span>
+                <span className="text-gray-400">+91 93107 00828</span>
               </li>
               <li className="flex items-center">
                 <FiMail className="text-brand-orange mr-3 flex-shrink-0" size={20} />

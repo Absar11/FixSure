@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { FiLogOut, FiCheckCircle, FiTrash2, FiFileText, FiPrinter, FiX, FiFilePlus, FiXCircle, FiEye } from 'react-icons/fi';
+import { FiLogOut, FiCheckCircle, FiTrash2, FiFileText, FiPrinter, FiX, FiFilePlus, FiXCircle, FiEye, FiBell } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
+import { io } from 'socket.io-client';
 
 const AdminDashboard = () => {
   const [inquiries, setInquiries] = useState([]);
@@ -18,6 +19,7 @@ const AdminDashboard = () => {
     warrantyNote: '45 Days Warranty on Gas Charging. (Warranty applies only to the specific area serviced by our technician.)'
   });
   const [statusFilter, setStatusFilter] = useState('All');
+  const [serviceFilter, setServiceFilter] = useState('All');
   const [dateFilter, setDateFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -39,6 +41,45 @@ const AdminDashboard = () => {
     const token = localStorage.getItem('adminToken');
     if (!token) navigate('/admin/login');
     fetchInquiries();
+
+    // Socket.io Real-time Setup
+    const socket = io(`http://${window.location.hostname}:5000`, {
+      transports: ['websocket', 'polling']
+    });
+
+    socket.on('connect', () => {
+      console.log('Socket connected to server:', socket.id);
+    });
+
+    socket.on('connect_error', (err) => {
+      console.error('Socket connection error:', err);
+    });
+
+    socket.on('newInquiry', (data) => {
+      console.log('New lead received via socket:', data);
+      
+      // Update inquiries list immediately
+      setInquiries(prev => [data, ...prev]);
+      
+      // Play a subtle notification sound (optional, but good for UX)
+      // new Audio('/notification.mp3').play().catch(e => console.log('Audio play blocked'));
+
+      // Show toast notification
+      toast.success(`New Lead Received: ${data.name} for ${data.serviceType}`, {
+        duration: 5000,
+        icon: '🔔',
+        style: {
+          border: '2px solid #1a237e',
+          padding: '16px',
+          color: '#1a237e',
+          fontWeight: 'bold'
+        },
+      });
+    });
+
+    return () => {
+      socket.disconnect();
+    };
   }, [navigate]);
 
   useEffect(() => {
@@ -181,11 +222,15 @@ const AdminDashboard = () => {
     iframe.contentWindow.print();
   };
 
+  const pendingInquiries = inquiries.filter(inq => inq.status === 'Pending');
+  const pendingCount = pendingInquiries.length;
+
   const filteredInquiries = inquiries.filter(inq => {
     const matchesStatus = statusFilter === 'All' || inq.status === statusFilter;
+    const matchesService = serviceFilter === 'All' || inq.serviceType.includes(serviceFilter);
     const matchesDate = !dateFilter || new Date(inq.createdAt).toISOString().split('T')[0] === dateFilter;
     const matchesSearch = !searchQuery || inq.phone.includes(searchQuery);
-    return matchesStatus && matchesDate && matchesSearch;
+    return matchesStatus && matchesService && matchesDate && matchesSearch;
   });
 
   // Pagination Logic
@@ -211,9 +256,17 @@ const AdminDashboard = () => {
         ) : (
           <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
             <div className="p-6 border-b border-gray-100 bg-gray-50 space-y-6">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h2 className="text-xl font-bold text-brand-navy">Service Requests ({filteredInquiries.length})</h2>
+              <div className="flex items-center space-x-6">
+                <div className="relative">
+                  <FiBell className="text-2xl text-brand-navy cursor-pointer hover:text-brand-orange transition-colors" />
+                  {pendingCount > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full shadow-lg animate-bounce">
+                      {pendingCount}
+                    </span>
+                  )}
+                </div>
+                <div className="text-right hidden md:block">
+                  <h2 className="text-xl font-black text-brand-navy tracking-tight">FixSure Admin</h2>
                   <p className="text-sm text-gray-500">Track and manage your service leads</p>
                 </div>
               </div>
@@ -239,25 +292,35 @@ const AdminDashboard = () => {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">
-                  {/* Status Filter */}
-                  <div className="flex bg-white rounded-xl border border-gray-200 p-1 shadow-sm overflow-hidden">
-                    {['All', 'Pending', 'Completed', 'Cancelled'].map((status) => (
-                      <button
-                        key={status}
-                        onClick={() => setStatusFilter(status)}
-                        className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${statusFilter === status
-                          ? 'bg-brand-navy text-white shadow-md'
-                          : 'text-gray-600 hover:bg-gray-100'
-                          }`}
-                      >
-                        {status}
-                      </button>
-                    ))}
-                  </div>
+                  <div className="flex flex-wrap gap-4 items-center">
+                    <div className="flex bg-white p-1 rounded-xl shadow-sm border border-gray-200">
+                      {['All', 'Pending', 'Completed', 'Cancelled'].map(status => (
+                        <button
+                          key={status}
+                          onClick={() => setStatusFilter(status)}
+                          className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${statusFilter === status
+                            ? 'bg-brand-navy text-white shadow-md'
+                            : 'text-gray-600 hover:bg-gray-100'
+                            }`}
+                        >
+                          {status}
+                        </button>
+                      ))}
+                    </div>
 
-                  {/* Date Filter */}
-                  <div className="flex items-center space-x-2 bg-white rounded-xl border border-gray-200 p-1 px-3 shadow-sm h-[42px]">
-                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Date:</span>
+                    <select
+                      value={serviceFilter}
+                      onChange={(e) => setServiceFilter(e.target.value)}
+                      className="px-4 py-2 rounded-xl border border-gray-200 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand-orange bg-white shadow-sm"
+                    >
+                      <option value="All">All Services</option>
+                      <option value="AC">AC Services</option>
+                      <option value="Refrigerator">Refrigerator</option>
+                      <option value="Washing Machine">Washing Machine</option>
+                      <option value="Microwave">Microwave</option>
+                      <option value="Chimney">Chimney</option>
+                    </select>
+
                     <input
                       type="date"
                       value={dateFilter}

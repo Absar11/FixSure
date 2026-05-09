@@ -68,7 +68,15 @@ router.post('/', async (req, res) => {
   try {
     const { name, phone, address, serviceType, message } = req.body;
     const newInquiry = new Inquiry({ name, phone, address, serviceType, message });
-    await newInquiry.save();
+    const savedInquiry = await newInquiry.save();
+
+    // Emit real-time notification
+    const io = req.app.get('io');
+    if (io) {
+      console.log('Emitting newInquiry event for:', savedInquiry.name);
+      io.emit('newInquiry', savedInquiry);
+    }
+
     res.status(201).json({ message: 'Inquiry submitted successfully!' });
   } catch (err) {
     res.status(500).json({ error: 'Server Error' });
