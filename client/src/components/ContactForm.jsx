@@ -48,6 +48,7 @@ const ContactForm = ({ minimal = false, preselectedService = 'AC Repair' }) => {
       toast.success('Service Request Sent! We will call you shortly.', { id: loadingToast });
       setFormData({ name: '', phone: '', serviceType: 'AC Repair', address: '', message: '' });
     } catch (error) {
+      console.error('Form Submit Error:', error);
       toast.error('Failed to send request. Please try again.', { id: loadingToast });
     } finally {
       setIsSubmitting(false);

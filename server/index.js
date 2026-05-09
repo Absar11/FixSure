@@ -9,14 +9,17 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: true, // Dynamically match the request origin
+    origin: "*",
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true
   }
 });
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: "*",
+  methods: ["GET", "POST", "PUT", "DELETE"]
+}));
 app.use(express.json());
 
 // Pass io to request object so it can be used in routes
