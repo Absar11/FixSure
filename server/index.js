@@ -44,9 +44,25 @@ io.on('connection', (socket) => {
   });
 });
 
+const Admin = require('./models/Admin');
+const bcrypt = require('bcryptjs');
+
 // Database Connection
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/fixsure')
-.then(() => console.log('MongoDB Connected'))
+.then(async () => {
+  console.log('MongoDB Connected');
+  
+  // Seed Admin if not exists
+  const adminCount = await Admin.countDocuments();
+  if (adminCount === 0) {
+    const hashedPassword = await bcrypt.hash('admin123', 10);
+    await Admin.create({
+      username: 'admin',
+      password: hashedPassword
+    });
+    console.log('Default Admin Created: admin / admin123');
+  }
+})
 .catch(err => console.log(err));
 
 const PORT = process.env.PORT || 5000;

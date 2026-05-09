@@ -21,6 +21,21 @@ router.post('/register', async (req, res) => {
   }
 });
 
+router.post('/register', async (req, res) => {
+  const { username, password, secretKey } = req.body;
+  if (secretKey !== 'FIXSURE_SECRET_2026') {
+    return res.status(403).json({ message: 'Invalid Secret Key' });
+  }
+  try {
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newAdmin = new Admin({ username, password: hashedPassword });
+    await newAdmin.save();
+    res.status(201).json({ message: 'Admin registered successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error registering admin' });
+  }
+});
+
 router.post('/login', async (req, res) => {
   const { username, password } = req.body;
   try {
