@@ -59,6 +59,21 @@ const AdminDashboard = () => {
       toast.error('Failed to delete inquiry');
     }
   };
+  const sendWhatsApp = (inq, billInfo) => {
+    const { billNumber, orderId } = billInfo;
+    // Format phone number (ensure 91 prefix)
+    const rawPhone = inq.phone.replace(/\D/g, '');
+    const phone = rawPhone.startsWith('91') ? rawPhone : `91${rawPhone}`;
+
+    // Calculate total for the message
+    const subtotal = billData.items.reduce((sum, item) => sum + (Number(item.amount) || 0) * (Number(item.qty) || 1), 0);
+    const total = subtotal - (Number(billData.discount) || 0);
+
+    const message = `*FixSure - Invoice Generated*%0A%0AHello *${inq.name}*,%0A%0AYour service for *${inq.serviceType}* is completed successfully.%0A%0A*Invoice Details:*%0AOrder ID: ${orderId}%0ABill No: ${billNumber}%0ATotal Amount: ₹${total}/-%0A%0AThank you for choosing FixSure!%0A📞 9310700828`;
+
+    const whatsappUrl = `https://wa.me/${phone}?text=${message}`;
+    window.open(whatsappUrl, '_blank');
+  };
 
   // ✅ FIX 1: Bill generate hone ke baad updatedInquiry se state update karo — no page reload needed
   const handleGenerateBill = async (e) => {
@@ -85,6 +100,9 @@ const AdminDashboard = () => {
 
       toast.success('Bill generated and saved successfully!', { id: loadingToast });
       setShowBillModal(false);
+
+      // ✅ Send WhatsApp Notification
+      sendWhatsApp(selectedInquiry, res.data);
       setBillData({
         items: [{ description: '', qty: 1, amount: '' }],
         discount: 0,

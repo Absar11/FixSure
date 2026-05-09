@@ -42,12 +42,12 @@ router.get('/bill-file/:billId', async (req, res) => {
   try {
     console.log('Serving PDF for Bill ID:', req.params.billId);
     const bill = await Bill.findById(req.params.billId);
-
+    
     if (!bill) {
       console.error('Bill NOT FOUND in database for ID:', req.params.billId);
       return res.status(404).json({ error: 'Bill not found' });
     }
-
+    
     console.log('File path in DB:', bill.pdfPath);
     if (!fs.existsSync(bill.pdfPath)) {
       console.error('File NOT FOUND on disk at path:', bill.pdfPath);
@@ -238,16 +238,16 @@ router.post('/:id/bill', async (req, res) => {
     await inquiry.save();
 
     console.log('Bill saved successfully:', billNumber);
-
-    // ✅ FIX: Return updated inquiry data so frontend can update state without page reload
+    
+    // ✅ Return updated inquiry data so frontend can update state without page reload
     const updatedInquiry = await Inquiry.findById(inquiry._id).populate('billId');
 
-    res.json({
-      message: 'Bill generated successfully',
-      billNumber,
-      orderId,
+    res.json({ 
+      message: 'Bill generated successfully', 
+      billNumber, 
+      orderId, 
       billId: savedBill._id,
-      updatedInquiry  // ✅ Frontend issey state update kar sakta hai
+      updatedInquiry
     });
 
   } catch (err) {

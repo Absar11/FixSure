@@ -13,15 +13,27 @@ const ContactForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    // Only allow digits for phone field and max 10 characters
+    if (e.target.name === 'phone') {
+      const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+      setFormData({ ...formData, phone: val });
+    } else {
+      setFormData({ ...formData, [e.target.name]: e.target.value });
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate phone number length
+    if (formData.phone.length !== 10) {
+      return toast.error('Please enter a valid 10-digit phone number');
+    }
+
     setIsSubmitting(true);
     const loadingToast = toast.loading('Sending your request...');
     try {
-      await axios.post('http://192.168.29.141:5000/api/inquiries', formData);
+      await axios.post(`http://${window.location.hostname}:5000/api/inquiries`, formData);
       toast.success('Booking request sent! We will contact you shortly.', { id: loadingToast });
       setFormData({ name: '', phone: '', address: '', serviceType: 'AC Repair', message: '' });
     } catch (error) {
@@ -64,7 +76,17 @@ const ContactForm = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
-                  <input type="tel" name="phone" value={formData.phone} onChange={handleChange} required className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-orange transition-shadow" placeholder="+91 98765 43210" />
+                  <input 
+                    type="tel" 
+                    name="phone" 
+                    value={formData.phone} 
+                    onChange={handleChange} 
+                    required 
+                    maxLength="10"
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-orange transition-shadow" 
+                    placeholder="9876543210" 
+                  />
+                  <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-wider font-bold">Must be 10 digits</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
@@ -83,8 +105,12 @@ const ContactForm = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Additional Message (Optional)</label>
                   <textarea name="message" value={formData.message} onChange={handleChange} rows="3" className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-orange transition-shadow" placeholder="Describe your issue..."></textarea>
                 </div>
-                <button type="submit" disabled={status.submitting} className="w-full bg-brand-navy hover:bg-gray-800 text-white font-bold py-4 px-8 rounded-xl shadow-lg transition-all transform hover:-translate-y-1">
-                  {status.submitting ? 'Submitting...' : 'Submit Request'}
+                <button 
+                  type="submit" 
+                  disabled={isSubmitting} 
+                  className="w-full bg-brand-navy hover:bg-gray-800 text-white font-bold py-4 px-8 rounded-xl shadow-lg transition-all transform hover:-translate-y-1"
+                >
+                  {isSubmitting ? 'Submitting...' : 'Submit Request'}
                 </button>
               </div>
             </form>
