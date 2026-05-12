@@ -362,8 +362,8 @@ router.post('/generate-direct-bill', async (req, res) => {
       pdfPath: filePath,
     });
 
-    await newBill.save();
-    res.json({ message: 'Direct Bill generated successfully', billNumber, orderId });
+    const savedBill = await newBill.save();
+    res.json({ message: 'Direct Bill generated successfully', billNumber, orderId, billId: savedBill._id });
 
   } catch (err) {
     console.error('Direct Bill error:', err);

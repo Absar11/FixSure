@@ -140,14 +140,14 @@ const AdminDashboard = () => {
       setManualCustomer({ name: '', phone: '', address: '' });
       fetchInquiries();
       
-      // WhatsApp Redirection
-      const customerName = isDirectBill ? manualCustomer.name : selectedInquiry.name;
-      const customerPhone = isDirectBill ? manualCustomer.phone : selectedInquiry.phone;
-      const rawPhone = customerPhone.replace(/\D/g, '');
-      const phone = rawPhone.startsWith('91') ? rawPhone : `91${rawPhone}`;
-      const message = `Hello ${customerName}, your bill (Order ID: ${res.data.orderId}) has been generated. Thank you for choosing FixSure!`;
-      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
+      // Open PDF in new tab for printing/downloading
+      const billId = res.data.billId;
+      if (billId) {
+        const pdfUrl = `${API_BASE_URL}/api/inquiries/bill-file/${billId}`;
+        window.open(pdfUrl, '_blank');
+      }
     } catch (err) {
+      console.error('Bill Error:', err);
       toast.error('Error generating bill');
     }
   };
@@ -409,7 +409,7 @@ const AdminDashboard = () => {
                 </div>
               </div>
 
-              <button type="submit" className="w-full bg-brand-navy text-white py-5 rounded-2xl font-black uppercase tracking-widest shadow-xl hover:-translate-y-1 transition-all mt-4">Generate & Send WhatsApp</button>
+              <button type="submit" className="w-full bg-brand-navy text-white py-5 rounded-2xl font-black uppercase tracking-widest shadow-xl hover:-translate-y-1 transition-all mt-4">Generate & View Bill</button>
             </form>
           </div>
         </div>
