@@ -384,6 +384,11 @@ const AdminDashboard = () => {
                       newItems[idx].description = e.target.value;
                       setBillData({...billData, items: newItems});
                     }} className="flex-grow px-4 py-3 rounded-xl bg-gray-50 border border-gray-100 font-bold text-sm outline-none" />
+                    <input type="number" placeholder="Qty" required min="1" value={item.qty} onChange={(e) => {
+                      const newItems = [...billData.items];
+                      newItems[idx].qty = Number(e.target.value);
+                      setBillData({...billData, items: newItems});
+                    }} className="w-20 px-4 py-3 rounded-xl bg-gray-50 border border-gray-100 font-bold text-sm outline-none" />
                     <input type="number" placeholder="Amt" required value={item.amount} onChange={(e) => {
                       const newItems = [...billData.items];
                       newItems[idx].amount = e.target.value;
