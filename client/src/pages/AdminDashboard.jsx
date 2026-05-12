@@ -26,6 +26,8 @@ const AdminDashboard = () => {
   const [serviceFilter, setServiceFilter] = useState('All');
   const [dateFilter, setDateFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isDirectBill, setIsDirectBill] = useState(false);
+  const [manualCustomer, setManualCustomer] = useState({ name: '', phone: '', address: '' });
   
   const navigate = useNavigate();
 
@@ -120,14 +122,30 @@ const AdminDashboard = () => {
   const handleGenerateBill = async (e) => {
     e.preventDefault();
     try {
-      const res = await api.post(`/api/inquiries/generate-bill/${selectedInquiry._id}`, billData);
+      let res;
+      if (isDirectBill) {
+        res = await api.post('/api/inquiries/generate-direct-bill', {
+          customerName: manualCustomer.name,
+          customerPhone: manualCustomer.phone,
+          customerAddress: manualCustomer.address,
+          ...billData
+        });
+      } else {
+        res = await api.post(`/api/inquiries/${selectedInquiry._id}/bill`, billData);
+      }
+
       toast.success('Bill generated!');
       setShowBillModal(false);
+      setIsDirectBill(false);
+      setManualCustomer({ name: '', phone: '', address: '' });
       fetchInquiries();
+      
       // WhatsApp Redirection
-      const rawPhone = selectedInquiry.phone.replace(/\D/g, '');
+      const customerName = isDirectBill ? manualCustomer.name : selectedInquiry.name;
+      const customerPhone = isDirectBill ? manualCustomer.phone : selectedInquiry.phone;
+      const rawPhone = customerPhone.replace(/\D/g, '');
       const phone = rawPhone.startsWith('91') ? rawPhone : `91${rawPhone}`;
-      const message = `Hello ${selectedInquiry.name}, your bill (Order ID: ${res.data.orderId}) has been generated. Thank you for choosing FixSure!`;
+      const message = `Hello ${customerName}, your bill (Order ID: ${res.data.orderId}) has been generated. Thank you for choosing FixSure!`;
       window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
     } catch (err) {
       toast.error('Error generating bill');
@@ -166,24 +184,32 @@ const AdminDashboard = () => {
       </header>
 
       <main className="flex-grow p-6 md:p-12 max-w-7xl mx-auto w-full">
-        {/* Tab Switcher */}
-        <div className="flex bg-white p-1 rounded-2xl mb-8 w-fit shadow-sm border border-gray-100">
-          <button
-            onClick={() => setActiveTab('Leads')}
-            className={`px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${activeTab === 'Leads' ? 'bg-brand-navy text-white shadow-lg' : 'text-gray-500 hover:text-brand-navy'}`}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+          <div className="flex bg-white p-1 rounded-2xl shadow-sm border border-gray-100 w-fit">
+            <button
+              onClick={() => setActiveTab('Leads')}
+              className={`px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${activeTab === 'Leads' ? 'bg-brand-navy text-white shadow-lg' : 'text-gray-500 hover:text-brand-navy'}`}
+            >
+              Service Leads
+            </button>
+            <button
+              onClick={() => setActiveTab('Reviews')}
+              className={`px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all relative ${activeTab === 'Reviews' ? 'bg-brand-navy text-white shadow-lg' : 'text-gray-500 hover:text-brand-navy'}`}
+            >
+              Reviews
+              {pendingReviewsCount > 0 && (
+                <span className="ml-2 bg-brand-orange text-white px-2 py-0.5 rounded-full text-[10px]">
+                  {pendingReviewsCount}
+                </span>
+              )}
+            </button>
+          </div>
+
+          <button 
+            onClick={() => { setIsDirectBill(true); setSelectedInquiry(null); setShowBillModal(true); }}
+            className="flex items-center space-x-2 bg-brand-navy text-white px-6 py-4 rounded-2xl shadow-xl hover:-translate-y-1 transition-all font-black text-xs uppercase tracking-widest"
           >
-            Service Leads
-          </button>
-          <button
-            onClick={() => setActiveTab('Reviews')}
-            className={`px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all relative ${activeTab === 'Reviews' ? 'bg-brand-navy text-white shadow-lg' : 'text-gray-500 hover:text-brand-navy'}`}
-          >
-            Reviews
-            {pendingReviewsCount > 0 && (
-              <span className="ml-2 bg-brand-orange text-white px-2 py-0.5 rounded-full text-[10px]">
-                {pendingReviewsCount}
-              </span>
-            )}
+            <FiFilePlus size={18} /> <span>Create Manual Bill</span>
           </button>
         </div>
 
@@ -322,18 +348,68 @@ const AdminDashboard = () => {
         )}
       </main>
       
-      {/* Bill Generation Modal (Simplified for the fix) */}
       {showBillModal && (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[100] p-4 backdrop-blur-md">
-          <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-lg p-10 relative">
-            <button onClick={() => setShowBillModal(false)} className="absolute top-6 right-6 text-gray-400 hover:text-brand-navy"><FiX size={24} /></button>
-            <h3 className="text-3xl font-black text-brand-navy uppercase tracking-tight mb-8">Generate Bill</h3>
+          <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-xl p-8 md:p-12 relative overflow-y-auto max-h-[90vh]">
+            <button onClick={() => { setShowBillModal(false); setIsDirectBill(false); }} className="absolute top-6 right-6 text-gray-400 hover:text-brand-navy"><FiX size={24} /></button>
+            <h3 className="text-3xl font-black text-brand-navy uppercase tracking-tight mb-8">
+              {isDirectBill ? 'Create Manual Bill' : 'Generate Bill'}
+            </h3>
+            
             <form onSubmit={handleGenerateBill} className="space-y-6">
-              <div>
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Amount (₹)</label>
-                <input type="number" required value={billData.items[0].amount} onChange={(e) => setBillData({...billData, items: [{...billData.items[0], amount: e.target.value}]})} className="w-full px-4 py-3 rounded-2xl bg-gray-50 border border-gray-100 outline-none focus:ring-2 focus:ring-brand-orange font-bold" placeholder="500" />
+              {isDirectBill && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-6 rounded-3xl border border-dashed border-gray-200 mb-6">
+                  <div className="col-span-2"><p className="text-[10px] font-black text-brand-orange uppercase tracking-widest mb-4">Customer Information</p></div>
+                  <div>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-2">Name</label>
+                    <input type="text" required value={manualCustomer.name} onChange={(e) => setManualCustomer({...manualCustomer, name: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white border border-gray-100 outline-none focus:ring-2 focus:ring-brand-orange font-bold text-sm" placeholder="Customer Name" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-2">Phone</label>
+                    <input type="tel" required maxLength="10" value={manualCustomer.phone} onChange={(e) => setManualCustomer({...manualCustomer, phone: e.target.value.replace(/\D/g, '')})} className="w-full px-4 py-3 rounded-xl bg-white border border-gray-100 outline-none focus:ring-2 focus:ring-brand-orange font-bold text-sm" placeholder="10 Digit Number" />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-2">Address</label>
+                    <input type="text" required value={manualCustomer.address} onChange={(e) => setManualCustomer({...manualCustomer, address: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white border border-gray-100 outline-none focus:ring-2 focus:ring-brand-orange font-bold text-sm" placeholder="Full Address" />
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-4">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">Service Items</p>
+                {billData.items.map((item, idx) => (
+                  <div key={idx} className="flex gap-2">
+                    <input type="text" placeholder="Description (e.g. AC Gas Charging)" required value={item.description} onChange={(e) => {
+                      const newItems = [...billData.items];
+                      newItems[idx].description = e.target.value;
+                      setBillData({...billData, items: newItems});
+                    }} className="flex-grow px-4 py-3 rounded-xl bg-gray-50 border border-gray-100 font-bold text-sm outline-none" />
+                    <input type="number" placeholder="Amt" required value={item.amount} onChange={(e) => {
+                      const newItems = [...billData.items];
+                      newItems[idx].amount = e.target.value;
+                      setBillData({...billData, items: newItems});
+                    }} className="w-24 px-4 py-3 rounded-xl bg-gray-50 border border-gray-100 font-bold text-sm outline-none" />
+                  </div>
+                ))}
+                <button type="button" onClick={() => setBillData({...billData, items: [...billData.items, { description: '', qty: 1, amount: '' }]})} className="text-[10px] font-black text-brand-navy hover:text-brand-orange uppercase tracking-widest flex items-center gap-1 ml-2">+ Add More Item</button>
               </div>
-              <button type="submit" className="w-full bg-brand-navy text-white py-4 rounded-2xl font-black uppercase tracking-widest shadow-xl hover:-translate-y-1 transition-all">Generate & Send WhatsApp</button>
+
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100">
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-2">Discount (₹)</label>
+                  <input type="number" value={billData.discount} onChange={(e) => setBillData({...billData, discount: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-gray-50 font-bold text-sm outline-none" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-2">Payment Mode</label>
+                  <select value={billData.paymentMode} onChange={(e) => setBillData({...billData, paymentMode: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-gray-50 font-bold text-sm outline-none">
+                    <option value="UPI">UPI / Scanner</option>
+                    <option value="Cash">Cash</option>
+                    <option value="Bank Transfer">Bank Transfer</option>
+                  </select>
+                </div>
+              </div>
+
+              <button type="submit" className="w-full bg-brand-navy text-white py-5 rounded-2xl font-black uppercase tracking-widest shadow-xl hover:-translate-y-1 transition-all mt-4">Generate & Send WhatsApp</button>
             </form>
           </div>
         </div>

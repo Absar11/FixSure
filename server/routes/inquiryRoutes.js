@@ -264,4 +264,111 @@ router.post('/:id/bill', async (req, res) => {
   }
 });
 
+// POST: Generate Direct Bill (No Inquiry required)
+router.post('/generate-direct-bill', async (req, res) => {
+  try {
+    const { customerName, customerPhone, customerAddress, items, discount, paymentMode, warrantyNote } = req.body;
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'Please add at least one service item' });
+    }
+
+    // Calculate totals
+    const subtotal = items.reduce((sum, item) => {
+      return sum + ((Number(item.amount) || 0) * (Number(item.qty) || 1));
+    }, 0);
+    const totalAmount = subtotal - (Number(discount) || 0);
+
+    // Bill number
+    const lastBill = await Bill.findOne().sort({ billNumber: -1 });
+    const billNumber = lastBill ? lastBill.billNumber + 1 : 1001;
+    const orderId = `FSHA${String(billNumber).padStart(6, '0')}`;
+
+    // Ensure bills directory exists
+    const billsDir = path.join(__dirname, '../bills');
+    if (!fs.existsSync(billsDir)) fs.mkdirSync(billsDir, { recursive: true });
+
+    const fileName = `Bill_${billNumber}.pdf`;
+    const filePath = path.join(billsDir, fileName);
+
+    // Generate PDF
+    await new Promise((resolve, reject) => {
+      const doc = new PDFDocument({ margin: 50 });
+      const stream = fs.createWriteStream(filePath);
+      doc.pipe(stream);
+
+      const logoPath = path.join(__dirname, '../assets/logo.png');
+      if (fs.existsSync(logoPath)) doc.image(logoPath, 50, 45, { width: 60 });
+
+      doc.fillColor('#1a237e').fontSize(20).text('FixSure', 120, 50);
+      doc.fillColor('#444').fontSize(10).text('Appliance Repair & Home Maintenance Services', 120, 75);
+      doc.text('9310700828', 120, 90);
+
+      doc.fillColor('#000').fontSize(10);
+      doc.text(`Invoice No: ${billNumber}`, 400, 50, { align: 'right' });
+      doc.text(`Order Id: ${orderId}`, 400, 65, { align: 'right' });
+      doc.text(`Date: ${new Date().toLocaleDateString('en-GB')}`, 400, 80, { align: 'right' });
+
+      doc.rect(50, 130, 512, 60).fill('#f9f9f9').stroke('#eee');
+      doc.fillColor('#1a237e').fontSize(12).text('Customer Details:', 60, 140);
+      doc.fillColor('#000').fontSize(10);
+      doc.text(`Name: ${customerName || 'N/A'}`, 60, 155);
+      doc.text(`Mobile: ${customerPhone || 'N/A'}`, 60, 170);
+      doc.text(`Address: ${customerAddress || 'N/A'}`, 250, 155, { width: 300 });
+
+      const tableTop = 220;
+      doc.rect(50, tableTop, 512, 20).fill('#1a237e');
+      doc.fillColor('#fff').fontSize(10).text('Description', 60, tableTop + 5);
+      doc.text('Qty', 350, tableTop + 5, { width: 50, align: 'center' });
+      doc.text('Amount (Rs.)', 450, tableTop + 5, { width: 100, align: 'right' });
+
+      let rowTop = tableTop + 25;
+      doc.fillColor('#000');
+      items.forEach((item) => {
+        doc.text(item.description || 'Service', 60, rowTop);
+        doc.text(String(item.qty || 1), 350, rowTop, { width: 50, align: 'center' });
+        doc.text(`${item.amount || 0}/-`, 450, rowTop, { width: 100, align: 'right' });
+        rowTop += 20;
+        doc.moveTo(50, rowTop - 5).lineTo(562, rowTop - 5).stroke('#eee');
+      });
+
+      const summaryTop = Math.max(rowTop + 10, 300);
+      doc.fontSize(10).fillColor('#000').text('Subtotal:', 350, summaryTop, { width: 100, align: 'right' });
+      doc.text(`${subtotal}/-`, 450, summaryTop, { width: 100, align: 'right' });
+      doc.text('Discount:', 350, summaryTop + 15, { width: 100, align: 'right' });
+      doc.text(`${discount || 0}/-`, 450, summaryTop + 15, { width: 100, align: 'right' });
+      doc.rect(340, summaryTop + 30, 222, 25).fill('#1a237e');
+      doc.fillColor('#fff').fontSize(12).text('Total Amount:', 350, summaryTop + 37);
+      doc.text(`Rs. ${totalAmount}/-`, 450, summaryTop + 37, { align: 'right' });
+
+      doc.fillColor('#000').fontSize(10).text(`Payment Mode: ${paymentMode || 'UPI'}`, 50, summaryTop + 40);
+      doc.moveDown(4);
+      doc.fillColor('#1a237e').fontSize(10).text('Note:', 50, doc.y);
+      doc.fillColor('#444').text(warrantyNote || 'N/A', 50, doc.y + 5, { width: 512 });
+      doc.end();
+      stream.on('finish', resolve);
+      stream.on('error', reject);
+    });
+
+    const newBill = new Bill({
+      billNumber,
+      orderId,
+      customer: { name: customerName, phone: customerPhone, address: customerAddress },
+      items,
+      discount: Number(discount) || 0,
+      totalAmount,
+      paymentMode: paymentMode || 'UPI',
+      warrantyNote,
+      pdfPath: filePath,
+    });
+
+    await newBill.save();
+    res.json({ message: 'Direct Bill generated successfully', billNumber, orderId });
+
+  } catch (err) {
+    console.error('Direct Bill error:', err);
+    res.status(500).json({ error: 'Server Error' });
+  }
+});
+
 module.exports = router;
