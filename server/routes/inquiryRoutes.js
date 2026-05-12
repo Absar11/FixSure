@@ -56,7 +56,8 @@ router.get('/bill-file/:billId', async (req, res) => {
 
     const absolutePath = path.resolve(bill.pdfPath);
     console.log('Serving absolute path:', absolutePath);
-    res.sendFile(absolutePath);
+    const fileName = path.basename(bill.pdfPath);
+    res.download(absolutePath, fileName);
   } catch (err) {
     console.error('Error serving bill file:', err);
     res.status(500).json({ error: 'Server Error' });
