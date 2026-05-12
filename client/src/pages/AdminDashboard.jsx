@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api, { API_BASE_URL } from '../utils/api';
 import { FiLogOut, FiCheckCircle, FiTrash2, FiFileText, FiPrinter, FiX, FiFilePlus, FiXCircle, FiEye, FiBell, FiStar, FiSearch, FiCalendar, FiFilter } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { io } from 'socket.io-client';
