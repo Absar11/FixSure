@@ -2,31 +2,26 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../utils/api';
 import { toast } from 'react-hot-toast';
-import { FiLock, FiUser, FiArrowRight } from 'react-icons/fi';
+import { FiLock, FiUser, FiKey, FiRefreshCw } from 'react-icons/fi';
 
-const AdminLogin = () => {
-  const [credentials, setCredentials] = useState({ username: '', password: '' });
+const AdminResetPassword = () => {
+  const [formData, setFormData] = useState({
+    username: '',
+    password: '',
+    secretKey: ''
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
 
-  const handleChange = (e) => {
-    setCredentials({ ...credentials, [e.target.name]: e.target.value });
-  };
-
-  const handleSubmit = async (e) => {
+  const handleReset = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const res = await api.post('/api/admin/login', {
-        username: credentials.username.trim(),
-        password: credentials.password.trim()
-      });
-      localStorage.setItem('adminToken', res.data.token);
-      toast.success('Welcome Back, Admin!');
-      navigate('/admin/dashboard');
-    } catch (err) {
-      console.error('Login Error:', err);
-      toast.error(err.response?.data?.message || 'Invalid Credentials');
+      await api.post('/api/admin/reset-password', formData);
+      toast.success('Password Reset Successful! Please Login.');
+      navigate('/admin/login');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Reset Failed');
     } finally {
       setIsSubmitting(false);
     }
@@ -39,20 +34,19 @@ const AdminLogin = () => {
           <div className="absolute top-0 left-0 w-full h-2 bg-brand-orange"></div>
           
           <div className="text-center mb-10">
-            <h1 className="text-4xl font-black text-brand-navy tracking-tighter uppercase italic">Admin <span className="text-brand-orange">Login</span></h1>
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] mt-2">Manage your business dashboard</p>
+            <h1 className="text-4xl font-black text-brand-navy tracking-tighter uppercase italic">Reset <span className="text-brand-orange">Password</span></h1>
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] mt-2">Recover your dashboard access</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleReset} className="space-y-6">
             <div className="relative group">
               <FiUser className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-brand-orange" />
               <input
                 type="text"
-                name="username"
-                placeholder="Username"
+                placeholder="Your Username"
                 required
-                value={credentials.username}
-                onChange={handleChange}
+                value={formData.username}
+                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                 className="w-full pl-12 pr-4 py-4 rounded-2xl bg-gray-50 border border-transparent focus:bg-white focus:border-brand-orange outline-none font-bold text-sm"
               />
             </div>
@@ -61,12 +55,23 @@ const AdminLogin = () => {
               <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-brand-orange" />
               <input
                 type="password"
-                name="password"
-                placeholder="Password"
+                placeholder="New Password"
                 required
-                value={credentials.password}
-                onChange={handleChange}
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 className="w-full pl-12 pr-4 py-4 rounded-2xl bg-gray-50 border border-transparent focus:bg-white focus:border-brand-orange outline-none font-bold text-sm"
+              />
+            </div>
+
+            <div className="relative group border-2 border-brand-orange rounded-2xl">
+              <FiKey className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-orange" />
+              <input
+                type="password"
+                placeholder="Admin Secret Key"
+                required
+                value={formData.secretKey}
+                onChange={(e) => setFormData({ ...formData, secretKey: e.target.value })}
+                className="w-full pl-12 pr-4 py-4 rounded-2xl bg-white outline-none font-black text-sm text-brand-navy"
               />
             </div>
 
@@ -75,21 +80,18 @@ const AdminLogin = () => {
               disabled={isSubmitting}
               className="w-full bg-brand-navy hover:bg-gray-800 text-white font-black py-5 rounded-2xl shadow-xl transition-all transform hover:-translate-y-1 flex items-center justify-center space-x-3 uppercase tracking-widest text-sm"
             >
-              {isSubmitting ? 'Signing In...' : (
+              {isSubmitting ? 'Resetting...' : (
                 <>
-                  <span>Sign In</span>
-                  <FiArrowRight />
+                  <span>Reset Password</span>
+                  <FiRefreshCw />
                 </>
               )}
             </button>
           </form>
 
-          <div className="mt-8 flex flex-col space-y-4 text-center">
-            <Link to="/admin/reset-password" name="reset-password-link" className="text-xs font-black text-brand-orange hover:text-brand-navy uppercase tracking-widest transition-colors">
-              Forgot Password?
-            </Link>
-            <Link to="/admin/register" className="text-xs font-black text-gray-400 hover:text-brand-orange uppercase tracking-widest transition-colors">
-              New Admin? Create Account
+          <div className="mt-8 text-center">
+            <Link to="/admin/login" className="text-xs font-black text-gray-400 hover:text-brand-orange uppercase tracking-widest transition-colors">
+              Back to Login
             </Link>
           </div>
         </div>
@@ -98,4 +100,4 @@ const AdminLogin = () => {
   );
 };
 
-export default AdminLogin;
+export default AdminResetPassword;

@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import Home from './pages/Home';
 import AdminLogin from './pages/AdminLogin';
 import AdminRegister from './pages/AdminRegister';
+import AdminResetPassword from './pages/AdminResetPassword';
 import AdminDashboard from './pages/AdminDashboard';
 import ServiceDetail from './pages/ServiceDetail';
 import About from './pages/About';
@@ -21,6 +22,7 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin/register" element={<AdminRegister />} />
+          <Route path="/admin/reset-password" element={<AdminResetPassword />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/service/:type" element={<ServiceDetail />} />
           <Route path="/about" element={<About />} />

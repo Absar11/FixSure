@@ -34,6 +34,28 @@ router.post('/register', async (req, res) => {
   }
 });
 
+// Admin Password Reset with Secret Key
+router.post('/reset-password', async (req, res) => {
+  const { username, password, secretKey } = req.body;
+  if (secretKey !== 'FIXSURE_SECRET_2026') {
+    return res.status(403).json({ message: 'Invalid Secret Key' });
+  }
+  try {
+    const admin = await Admin.findOne({ username: username.toLowerCase() });
+    if (!admin) {
+      return res.status(404).json({ message: 'Admin user not found' });
+    }
+    const hashedPassword = await bcrypt.hash(password, 10);
+    admin.password = hashedPassword;
+    await admin.save();
+    console.log('Admin Password Reset for:', username);
+    res.json({ message: 'Password reset successfully' });
+  } catch (error) {
+    console.error('Reset Error:', error);
+    res.status(500).json({ message: 'Error resetting password' });
+  }
+});
+
 // Admin Login
 router.post('/login', async (req, res) => {
   const { username, password } = req.body;
